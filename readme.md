@@ -12,7 +12,7 @@ Designed with concurrency in mind, it utilizes read-write locks for safe concurr
 That is roughly *1,912,577 operations per second.*
 
 <div>
-    <h1 align="center"><img width="268" src="drawing.png"></h1>
+    <h1 align="center"><img width="328" src="drawing.png"></h1>
 </div>
 
 ### Usage
