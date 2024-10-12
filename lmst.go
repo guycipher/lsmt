@@ -371,10 +371,6 @@ func (l *LMST) Compact() error {
 		}
 	}
 
-	// Lock sstables
-	l.sstablesLock.Lock()
-	defer l.sstablesLock.Unlock()
-
 	// Clear the sstables
 	l.sstables = make([]*SSTable, 0)
 

@@ -167,3 +167,33 @@ func TestLMST_Delete(t *testing.T) {
 		t.Fatal("expected key to be deleted")
 	}
 }
+
+func TestLMST_Get(t *testing.T) {
+	defer os.RemoveAll("my_lsm_tree")
+	lmst, err := New("my_lsm_tree", 0755, 15_000, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if lmst == nil {
+		t.Fatal("expected non-nil lmst")
+	}
+
+	// Insert 100,000 key-value pairs
+	for i := 0; i < 100_000; i++ {
+		err = lmst.Put([]byte(string(fmt.Sprintf("%d", i))), []byte(string(fmt.Sprintf("%d", i))))
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Get the key
+	value, err := lmst.Get([]byte("99822"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if string(value) != "99822" {
+		t.Fatalf("expected 99822, got %s", string(value))
+	}
+}
