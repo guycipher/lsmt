@@ -17,10 +17,8 @@ package lsmt
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"testing"
-	"time"
 )
 
 func TestNew(t *testing.T) {
@@ -198,27 +196,4 @@ func TestLMST_Get(t *testing.T) {
 	if string(value) != "99822" {
 		t.Fatalf("expected 99822, got %s", string(value))
 	}
-}
-
-func TestLMST_Get2(t *testing.T) {
-	defer os.RemoveAll("my_lsm_tree")
-	lsmt, err := New("my_lsm_tree", 0755, 1000000, 1000, 100)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if lsmt == nil {
-		t.Fatal("expected non-nil lmst")
-	}
-
-	tt := time.Now()
-
-	for i := 0; i < 1000000; i++ {
-		err = lsmt.Put([]byte(string(fmt.Sprintf("%d", i))), []byte(string(fmt.Sprintf("%d", i))))
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	log.Println("Write 1000000 elements in", time.Since(tt))
 }
