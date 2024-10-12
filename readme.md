@@ -14,6 +14,17 @@ That is roughly *1,912,577 operations per second.*
     <h1 align="center"><img width="328" src="drawing.png"></h1>
 </div>
 
+### Features
+- `Memtable` - The use of an in-memory AVL tree (memtable) allows for fast insertions and lookups. By accumulating writes in memory, the implementation reduces the number of disk I/O operations.
+- `Batch Writes to SSTables` -  Instead of writing each key-value pair immediately to disk, the system flushes the memtable to an SSTable when it reaches a predefined size (memtableFlushSize). This batching improves write performance.
+- `Compaction Strategy` - The compaction process merges multiple SSTables into fewer ones, reducing the number of files and thus the amount of disk I/O needed for reads. The implementation also ensures that a minimum number of SSTables is retained to optimize read performance.
+- `Efficient Key Lookups` - The use of binary search on SSTables improves the efficiency of key lookups. Each SSTable is stored sorted, allowing fast search operations.
+- `Range Queries` -  The implementation supports various range queries (e.g., Range, GreaterThan, LessThan), which can be optimized for both the memtable and SSTables.
+- `Concurrent Access` -  The use of read-write mutexes allows concurrent reads while ensuring safe writes to the memtable, which can improve performance in multi-threaded environments.
+- `Tombstones for Deletions` - Instead of physically removing key-value pairs from SSTables, tombstones are written to represent deletions. This avoids the overhead of immediate compaction and allows the system to manage deletions in a more efficient way.
+- `File Management` - The implementation supports splitting large SSTables into smaller ones, which can help maintain read performance by keeping SSTables manageable in size.
+- `Lazy Loading of SSTables` - SSTables are only loaded into memory when necessary, minimizing memory usage and startup time.
+
 ### Usage
 ```go
 // Create a new LSM-tree in the specified directory
