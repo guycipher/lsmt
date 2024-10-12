@@ -3,8 +3,7 @@ The lsmt package provides a single level embedded log structured merge tree (LSM
 
 It features a memory-based AVL tree (memtable) that temporarily holds key-value pairs before flushing them to sorted string tables (SSTables) on disk.
 
-The package supports basic operations like insertion (Put), retrieval (Get), and deletion (Delete), as well as compaction to optimize storage by merging and removing tombstoned entries.
-Designed with concurrency in mind, it utilizes read-write locks for safe concurrent access.
+Compaction is triggered when the number of SSTables reaches a certain threshold of sstables, and the SSTables are merged to reduce the number of files and improve read performance.
 
 ## Benchmarking
 11th Gen Intel(R) Core(TM) i7-11700K @ 3.60GHz UBuntu with WDC WDS500G2B0A-00SM50(HDD) we put 1 MILLION keys in `523ms` 523 milliseconds
