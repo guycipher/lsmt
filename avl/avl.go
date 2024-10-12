@@ -22,16 +22,16 @@ import (
 
 // AVLTree is a self-balancing binary search tree.
 type AVLTree struct {
-	Root *Node
+	Root *Node // Teh root of the AVL tree.
 }
 
 // Node represents a node in the AVL tree.
 type Node struct {
-	Key    []byte
-	Value  []byte
-	Left   *Node
-	Right  *Node
-	Height int
+	Key    []byte // The key of the node.
+	Value  []byte // The value of the node.
+	Left   *Node  // The left child of the node.
+	Right  *Node  // The right child of the node.
+	Height int    // The height of the node.
 }
 
 // NewAVLTree creates a new AVL tree.
