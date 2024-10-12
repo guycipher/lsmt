@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"lmst/avl"
+	"log"
 	"os"
 	"strings"
 	"sync"
@@ -71,10 +72,6 @@ func New(directory string, directoryPerm os.FileMode, memtableFlushSize, compact
 			compactionInterval: compactionInterval,
 		}, nil
 	} else {
-		// If the directory exists, check if it is a directory
-		if s, err := os.Stat(directory); err != nil || !s.IsDir() {
-			return nil, errors.New("directory is not a directory")
-		}
 
 		// We create the directory and populate it with the SSTables
 		files, err := os.ReadDir(directory)
@@ -140,7 +137,8 @@ func (l *LMST) Put(key, value []byte) error {
 	l.memtable.Insert(key, value)
 
 	// If the memtable size exceeds the flush size, flush the memtable to disk.
-	if l.memtable.GetSize() > l.memtableFlushSize {
+	if l.memtable.GetSize() >= l.memtableFlushSize {
+		log.Println("Flushing memtable to disk...")
 		if err := l.flushMemtable(); err != nil {
 			return err
 		}
@@ -155,7 +153,7 @@ func (l *LMST) flushMemtable() error {
 	// We will then clear the memtable.
 
 	// Create a new SSTable from the memtable.
-	sstable, err := newSSTable(l.directory, l.memtable)
+	sstable, err := l.newSSTable(l.directory, l.memtable)
 	if err != nil {
 		return err
 	}
@@ -180,7 +178,7 @@ type KeyValue struct {
 }
 
 // newSSTable creates a new SSTable file from the memtable.
-func newSSTable(directory string, memtable *avl.AVLTree) (*SSTable, error) {
+func (l *LMST) newSSTable(directory string, memtable *avl.AVLTree) (*SSTable, error) {
 
 	// Create a sorted map from the memtable which will be used to create the SSTable.
 
@@ -191,7 +189,7 @@ func newSSTable(directory string, memtable *avl.AVLTree) (*SSTable, error) {
 	})
 
 	// Based on amount of sstables we name the file
-	fileName := fmt.Sprintf("%s%s%d%s", directory, string(os.PathSeparator), len(sstableSlice), SSTABLE_EXTENSION)
+	fileName := fmt.Sprintf("%s%s%d%s", directory, string(os.PathSeparator), len(l.sstables), SSTABLE_EXTENSION)
 
 	// Create a new SSTable file.
 	ssltableFile, err := os.OpenFile(fileName, os.O_CREATE|os.O_RDWR, 0644)
@@ -232,7 +230,6 @@ func (l *LMST) Get(key []byte) ([]byte, error) {
 	// Lock memtable for reading.
 	l.memtableLock.RLock()
 
-
 	// Check the memtable for the key.
 	if node := l.memtable.Search(key); node != nil {
 		l.memtableLock.RUnlock()
@@ -240,7 +237,6 @@ func (l *LMST) Get(key []byte) ([]byte, error) {
 	}
 
 	l.memtableLock.RUnlock()
-
 
 	// Search the SSTables for the key.
 	for i := len(l.sstables) - 1; i >= 0; i-- {
@@ -327,13 +323,25 @@ func (l *LMST) Compact() error {
 	}
 
 	// Flush the new memtable to disk, creating a new SSTable.
-	newSSTable, err := newSSTable(l.directory, newMemtable)
+	newSSTable, err := l.newSSTable(l.directory, newMemtable)
 	if err != nil {
 		return err
 	}
 
 	// Replace the list of old SSTables with the new SSTable.
 	l.sstables = []*SSTable{newSSTable}
+
+	return nil
+}
+
+// Close closes the LSM-tree gracefully closing all opened SSTable files.
+func (l *LMST) Close() error {
+	// Close all SSTable files.
+	for _, sstable := range l.sstables {
+		if err := sstable.file.Close(); err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
