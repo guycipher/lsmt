@@ -25,6 +25,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 )
 
 const SSTABLE_EXTENSION = ".sst"
@@ -32,7 +33,8 @@ const TOMBSTONE_VALUE = "$tombstone"
 
 // LSMT is the main struct for the log-structured merge-tree.
 type LSMT struct {
-	memtable           *avl.AVLTree  // The memtable is an in-memory AVL tree.
+	memtable           *avl.AVLTree // The memtable is an in-memory AVL tree.
+	memtableSize       atomic.Int64
 	memtableLock       *sync.RWMutex // Lock for the memtable.
 	sstables           []*SSTable    // The list of current SSTables.
 	sstablesLock       *sync.RWMutex // Lock for the list of SSTables.
@@ -141,11 +143,13 @@ func (l *LSMT) Put(key, value []byte) error {
 	l.memtable.Insert(key, value)
 
 	// If the memtable size exceeds the flush size, flush the memtable to disk.
-	if l.memtable.GetSize() >= l.memtableFlushSize {
-		log.Println("Flushing memtable to disk...")
+	if l.memtableSize.Load() > int64(l.memtableFlushSize) {
+		log.Println("Flushing memtable...")
 		if err := l.flushMemtable(); err != nil {
 			return err
 		}
+	} else {
+		l.memtableSize.Swap(l.memtableSize.Load() + 1)
 	}
 
 	return nil
@@ -171,6 +175,7 @@ func (l *LSMT) flushMemtable() error {
 
 	// Clear the memtable.
 	l.memtable = avl.NewAVLTree()
+	l.memtableSize.Swap(0)
 
 	// Check the amount of sstables and if we need to compact
 	if len(l.sstables) > l.compactionInterval {
