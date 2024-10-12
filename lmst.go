@@ -169,7 +169,7 @@ func (l *LMST) flushMemtable() error {
 	l.memtable = avl.NewAVLTree()
 
 	// Check the amount of sstables and if we need to compact
-	if len(l.sstables) >= l.compactionInterval {
+	if len(l.sstables) > l.compactionInterval {
 		log.Println("Compacting LSM-tree...")
 		if err := l.Compact(); err != nil {
 			return err
@@ -219,11 +219,17 @@ func (l *LMST) newSSTable(directory string, memtable *avl.AVLTree) (*SSTable, er
 
 // getSSTableKVs reads the key-value pairs from the SSTable file.
 func getSSTableKVs(file *os.File) ([]*KeyValue, error) {
+	// Seek to start of file
+	_, err := file.Seek(0, 0)
+	if err != nil {
+		return nil, err
+	}
+
 	// Decode the SSTable file.
 	dec := gob.NewDecoder(file)
 
 	var kvs []*KeyValue
-	err := dec.Decode(&kvs)
+	err = dec.Decode(&kvs)
 	if err != nil {
 		return nil, err
 	}
@@ -331,6 +337,7 @@ func (l *LMST) Compact() error {
 		}
 
 		sstable.file.Close() // Close the SSTable file.
+
 	}
 
 	// We remove all the sstables in the directory lmst directory..
@@ -340,6 +347,7 @@ func (l *LMST) Compact() error {
 	}
 
 	for _, file := range files {
+
 		if file.IsDir() {
 			continue
 		}
@@ -348,8 +356,18 @@ func (l *LMST) Compact() error {
 			continue
 		}
 
-		err = os.Remove(l.directory)
+		err = os.Remove(fmt.Sprintf("%s%s%s", l.directory, string(os.PathSeparator), file.Name()))
+		if err != nil {
+			return err
+		}
 	}
+
+	// Lock sstables
+	l.sstablesLock.Lock()
+	defer l.sstablesLock.Unlock()
+
+	// Clear the sstables
+	l.sstables = make([]*SSTable, 0)
 
 	// Flush the new memtable to disk, creating a new SSTable.
 	newSSTable, err := l.newSSTable(l.directory, newMemtable)

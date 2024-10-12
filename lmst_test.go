@@ -79,3 +79,37 @@ func TestLMST_Put(t *testing.T) {
 	}
 
 }
+
+func TestLMST_Compact(t *testing.T) {
+	defer os.RemoveAll("my_lsm_tree")
+	lmst, err := New("my_lsm_tree", 0755, 128, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if lmst == nil {
+		t.Fatal("expected non-nil lmst")
+	}
+
+	// Insert 384 key-value pairs
+	for i := 0; i < 384; i++ {
+		err = lmst.Put([]byte(string(fmt.Sprintf("%d", i))), []byte(string(fmt.Sprintf("%d", i))))
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// this will create 3 sstables, the system will know at that point as sstables is over compactionInverval of 2 at that point will compact
+	// 0.sst, 1.sst, 2.sst
+	// to 0.sst
+
+	if len(lmst.sstables) != 1 {
+		t.Fatalf("expected 1 sstables, got %d", len(lmst.sstables))
+	}
+
+	// Check for 0.sst
+	if _, err := os.Stat("my_lsm_tree/0.sst"); os.IsNotExist(err) {
+		t.Fatal(err)
+	}
+
+}
