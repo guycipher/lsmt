@@ -166,3 +166,14 @@ if err := lst.Compact(); err != nil {
     fmt.Println("LSM-tree compacted successfully!")
 }
 ```
+
+### Close
+Flushes the memtable to disk and closes all opened sstables
+```go
+// Assume lst is already created and populated
+if err := lst.Close(); err != nil {
+    fmt.Println("Error closing LSM-tree:", err)
+} else {
+    fmt.Println("LSM-tree closed successfully!")
+}
+```
