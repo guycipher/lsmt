@@ -406,6 +406,11 @@ func (l *LSMT) Compact() error {
 
 // Close closes the LSM-tree gracefully closing all opened SSTable files.
 func (l *LSMT) Close() error {
+	// Flush the memtable to disk.
+	if err := l.flushMemtable(); err != nil {
+		return err
+	}
+
 	// Close all SSTable files.
 	for _, sstable := range l.sstables {
 		if err := sstable.file.Close(); err != nil {

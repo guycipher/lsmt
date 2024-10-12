@@ -32,6 +32,8 @@ func TestNew(t *testing.T) {
 		t.Fatal("expected non-nil lmst")
 	}
 
+	defer lsmt.Close()
+
 	// Check if the directory exists
 	if _, err := os.Stat("my_lsm_tree"); os.IsNotExist(err) {
 		t.Fatal(err)
@@ -49,6 +51,8 @@ func TestLMST_Put(t *testing.T) {
 	if lsmt == nil {
 		t.Fatal("expected non-nil lmst")
 	}
+
+	defer lsmt.Close()
 
 	// Insert 268 key-value pairs
 	for i := 0; i < 268; i++ {
@@ -91,6 +95,8 @@ func TestLMST_Compact(t *testing.T) {
 		t.Fatal("expected non-nil lmst")
 	}
 
+	defer lsmt.Close()
+
 	// Insert 384 key-value pairs
 	for i := 0; i < 384; i++ {
 		err = lsmt.Put([]byte(string(fmt.Sprintf("%d", i))), []byte(string(fmt.Sprintf("%d", i))))
@@ -120,6 +126,8 @@ func TestLMST_Delete(t *testing.T) {
 	if lsmt == nil {
 		t.Fatal("expected non-nil lmst")
 	}
+
+	defer lsmt.Close()
 
 	// Insert 256 key-value pairs
 	for i := 0; i < 256; i++ {
@@ -175,6 +183,8 @@ func TestLMST_Get(t *testing.T) {
 		t.Fatal("expected non-nil lmst")
 	}
 
+	defer lsmt.Close()
+
 	// Insert 100,000 key-value pairs
 	for i := 0; i < 100_000; i++ {
 		err = lsmt.Put([]byte(string(fmt.Sprintf("%d", i))), []byte(string(fmt.Sprintf("%d", i))))
@@ -204,6 +214,8 @@ func TestLSMT_NGet(t *testing.T) {
 	if lsmt == nil {
 		t.Fatal("expected non-nil lmst")
 	}
+
+	defer lsmt.Close()
 
 	for i := 0; i < 10; i++ {
 		err = lsmt.Put([]byte(string(fmt.Sprintf("%d", i))), []byte(string(fmt.Sprintf("%d", i))))
@@ -259,6 +271,8 @@ func TestLSMT_Range(t *testing.T) {
 		t.Fatal("expected non-nil lmst")
 	}
 
+	defer lsmt.Close()
+
 	for i := 0; i < 10; i++ {
 		err = lsmt.Put([]byte(string(fmt.Sprintf("%d", i))), []byte(string(fmt.Sprintf("%d", i))))
 		if err != nil {
@@ -306,6 +320,8 @@ func TestLSMT_NRange(t *testing.T) {
 	if lsmt == nil {
 		t.Fatal("expected non-nil lmst")
 	}
+
+	defer lsmt.Close()
 
 	for i := 0; i < 10; i++ {
 		err = lsmt.Put([]byte(string(fmt.Sprintf("%d", i))), []byte(string(fmt.Sprintf("%d", i))))
@@ -358,6 +374,8 @@ func TestLSMT_GreaterThan(t *testing.T) {
 		t.Fatal("expected non-nil lmst")
 	}
 
+	defer lsmt.Close()
+
 	for i := 0; i < 10; i++ {
 		err = lsmt.Put([]byte(string(fmt.Sprintf("%d", i))), []byte(string(fmt.Sprintf("%d", i))))
 		if err != nil {
@@ -407,6 +425,8 @@ func TestLSMT_LessThan(t *testing.T) {
 		t.Fatal("expected non-nil lmst")
 	}
 
+	defer lsmt.Close()
+
 	for i := 0; i < 10; i++ {
 		err = lsmt.Put([]byte(string(fmt.Sprintf("%d", i))), []byte(string(fmt.Sprintf("%d", i))))
 		if err != nil {
@@ -454,6 +474,8 @@ func TestLSMT_GreaterThanEqual(t *testing.T) {
 	if lsmt == nil {
 		t.Fatal("expected non-nil lmst")
 	}
+
+	defer lsmt.Close()
 
 	for i := 0; i < 10; i++ {
 		err = lsmt.Put([]byte(string(fmt.Sprintf("%d", i))), []byte(string(fmt.Sprintf("%d", i))))
@@ -504,6 +526,8 @@ func TestLSMT_LessThanEqual(t *testing.T) {
 	if lsmt == nil {
 		t.Fatal("expected non-nil lmst")
 	}
+
+	defer lsmt.Close()
 
 	for i := 0; i < 10; i++ {
 		err = lsmt.Put([]byte(string(fmt.Sprintf("%d", i))), []byte(string(fmt.Sprintf("%d", i))))
