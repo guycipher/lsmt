@@ -127,9 +127,14 @@ func New(directory string, directoryPerm os.FileMode, memtableFlushSize, compact
 
 }
 
+// Put inserts a key-value pair into the LSM-tree.
 func (l *LMST) Put(key, value []byte) error {
 	// We will first put the key-value pair in the memtable.
 	// If the memtable size exceeds the flush size, we will flush the memtable to disk.
+
+	// Lock memtable for writing.
+	l.memtableLock.Lock()
+	defer l.memtableLock.Unlock()
 
 	// Put the key-value pair in the memtable.
 	l.memtable.Insert(key, value)
@@ -144,6 +149,7 @@ func (l *LMST) Put(key, value []byte) error {
 	return nil
 }
 
+// flushMemtable flushes the memtable to disk, creating a new SSTable.
 func (l *LMST) flushMemtable() error {
 	// We will create a new SSTable from the memtable and add it to the list of SSTables.
 	// We will then clear the memtable.
@@ -154,6 +160,10 @@ func (l *LMST) flushMemtable() error {
 		return err
 	}
 
+	// Lock sstables
+	l.sstablesLock.Lock()
+	defer l.sstablesLock.Unlock()
+
 	// Add the SSTable to the list of SSTables.
 	l.sstables = append(l.sstables, sstable)
 
@@ -163,11 +173,13 @@ func (l *LMST) flushMemtable() error {
 	return nil
 }
 
+// KeyValue is a struct representing a key-value pair.
 type KeyValue struct {
 	Key   []byte
 	Value []byte
 }
 
+// newSSTable creates a new SSTable file from the memtable.
 func newSSTable(directory string, memtable *avl.AVLTree) (*SSTable, error) {
 
 	// Create a sorted map from the memtable which will be used to create the SSTable.
@@ -212,17 +224,30 @@ func getSSTableKVs(file *os.File) ([]*KeyValue, error) {
 	return kvs, nil
 }
 
+// Get retrieves the value for a given key from the LSM-tree.
 func (l *LMST) Get(key []byte) ([]byte, error) {
 	// We will first check the memtable for the key.
 	// If the key is not found in the memtable, we will search the SSTables.
 
+	// Lock memtable for reading.
+	l.memtableLock.RLock()
+
+
 	// Check the memtable for the key.
 	if node := l.memtable.Search(key); node != nil {
+		l.memtableLock.RUnlock()
 		return node.Value, nil
 	}
 
+	l.memtableLock.RUnlock()
+
+
 	// Search the SSTables for the key.
 	for i := len(l.sstables) - 1; i >= 0; i-- {
+		// Lock the SSTable for reading.
+		l.sstablesLock.RLock()
+		defer l.sstablesLock.RUnlock()
+
 		sstable := l.sstables[i]
 
 		// If the key is not within the range of this SSTable, skip it.
@@ -246,8 +271,13 @@ func (l *LMST) Get(key []byte) ([]byte, error) {
 	return nil, errors.New("key not found")
 }
 
+// Delete removes a key from the LSM-tree.
 func (l *LMST) Delete(key []byte) error {
 	// We will write a tombstone value to the memtable for the key.
+
+	// Lock memtable for writing.
+	l.memtableLock.Lock()
+	defer l.memtableLock.Unlock()
 
 	// Write a tombstone value to the memtable for the key.
 	l.memtable.Insert(key, []byte(""))
@@ -274,6 +304,7 @@ func binarySearch(kvs []*KeyValue, key []byte) int {
 	return -1
 }
 
+// Compact compacts the LSM-tree by merging all SSTables into a single SSTable.
 func (l *LMST) Compact() error {
 	// Create a new empty memtable.
 	newMemtable := avl.NewAVLTree()
