@@ -28,6 +28,7 @@ import (
 )
 
 const SSTABLE_EXTENSION = ".sst"
+const TOMBSTONE_VALUE = "$tombstone"
 
 // LMST is the main struct for the log-structured merge-tree.
 type LMST struct {
@@ -248,6 +249,11 @@ func (l *LMST) Get(key []byte) ([]byte, error) {
 	// Check the memtable for the key.
 	if node := l.memtable.Search(key); node != nil {
 		l.memtableLock.RUnlock()
+
+		if bytes.Compare(node.Value, []byte(TOMBSTONE_VALUE)) == 0 {
+			return nil, errors.New("key not found")
+		}
+
 		return node.Value, nil
 	}
 
@@ -291,7 +297,7 @@ func (l *LMST) Delete(key []byte) error {
 	defer l.memtableLock.Unlock()
 
 	// Write a tombstone value to the memtable for the key.
-	l.memtable.Insert(key, []byte(""))
+	l.memtable.Insert(key, []byte(TOMBSTONE_VALUE))
 
 	return nil
 }
@@ -330,10 +336,13 @@ func (l *LMST) Compact() error {
 
 		// For each key-value pair, check if the value is a tombstone.
 		for _, kv := range kvs {
-			if len(kv.Value) != 0 {
-				// If the value is not a tombstone, add it to the new memtable.
-				newMemtable.Insert(kv.Key, kv.Value)
+			if bytes.Compare(kv.Value, []byte(TOMBSTONE_VALUE)) == 0 { // If the value is a tombstone, skip this key-value pair
+				continue
 			}
+
+			// If the value is not a tombstone, add it to the new memtable.
+			newMemtable.Insert(kv.Key, kv.Value)
+
 		}
 
 		sstable.file.Close() // Close the SSTable file.

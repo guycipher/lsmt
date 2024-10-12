@@ -113,3 +113,57 @@ func TestLMST_Compact(t *testing.T) {
 	}
 
 }
+
+func TestLMST_Delete(t *testing.T) {
+	defer os.RemoveAll("my_lsm_tree")
+	lmst, err := New("my_lsm_tree", 0755, 128, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if lmst == nil {
+		t.Fatal("expected non-nil lmst")
+	}
+
+	// Insert 256 key-value pairs
+	for i := 0; i < 256; i++ {
+		err = lmst.Put([]byte(string(fmt.Sprintf("%d", i))), []byte(string(fmt.Sprintf("%d", i))))
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Delete 128 key-value pairs
+	for i := 0; i < 128; i++ {
+		err = lmst.Delete([]byte(string(fmt.Sprintf("%d", i))))
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// There should be 2 sstables
+	// 0.sst and 1.sst
+	if len(lmst.sstables) != 2 {
+		t.Fatalf("expected 2 sstables, got %d", len(lmst.sstables))
+	}
+
+	expectFiles := []string{"0.sst", "1.sst"}
+
+	// Read the directory
+	files, err := os.ReadDir("my_lsm_tree")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for i, file := range files {
+		if file.Name() != expectFiles[i] {
+			t.Fatalf("expected %s, got %s", expectFiles[i], file.Name())
+		}
+	}
+
+	// Check if the key is deleted
+	_, err = lmst.Get([]byte("1"))
+	if err == nil {
+		t.Fatal("expected key to be deleted")
+	}
+}
