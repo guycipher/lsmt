@@ -3,7 +3,7 @@ The lsmt package provides a single level embedded log structured merge tree (LSM
 
 It features a memory-based AVL tree (memtable) that temporarily holds key-value pairs before flushing them to sorted string tables (SSTables) on disk.
 
-Compaction is triggered when the number of SSTables reaches a certain threshold of sstables, and the SSTables are merged to reduce the number of files and improve read performance.
+Compaction is triggered when the number of SSTables reaches a certain threshold, and the SSTables are merged to reduce the number of files and improve read performance.
 
 ## Benchmarking
 11th Gen Intel(R) Core(TM) i7-11700K @ 3.60GHz UBuntu with WDC WDS500G2B0A-00SM50(HDD) we put 1 MILLION keys in `523ms` 523 milliseconds
