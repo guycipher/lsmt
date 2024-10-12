@@ -33,8 +33,8 @@ const TOMBSTONE_VALUE = "$tombstone"
 
 // LSMT is the main struct for the log-structured merge-tree.
 type LSMT struct {
-	memtable           *avl.AVLTree // The memtable is an in-memory AVL tree.
-	memtableSize       atomic.Int64
+	memtable           *avl.AVLTree  // The memtable is an in-memory AVL tree.
+	memtableSize       atomic.Int64  // The size of the memtable.
 	memtableLock       *sync.RWMutex // Lock for the memtable.
 	sstables           []*SSTable    // The list of current SSTables.
 	sstablesLock       *sync.RWMutex // Lock for the list of SSTables.
