@@ -10,7 +10,7 @@ Designed with concurrency in mind, it utilizes read-write locks for safe concurr
 directory := "data"
 
 // You can specify the directory, file permissions, max memtable size, and compaction interval
-lst, err := lmst.New(directory, os.ModePerm, 10, 5)
+lst, err := lmst.New(directory, os.ModePerm(0777), 10, 5)
 if err != nil {
     fmt.Println("Error creating LSM-tree:", err)
     return
