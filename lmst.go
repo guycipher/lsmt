@@ -42,10 +42,10 @@ type LMST struct {
 
 // SSTable is a struct representing a sorted string table.
 type SSTable struct {
-	file   *os.File
-	minKey []byte
-	maxKey []byte
-	lock   *sync.RWMutex
+	file   *os.File      // The opened SSTable file.
+	minKey []byte        // The minimum key in the SSTable.
+	maxKey []byte        // The maximum key in the SSTable.
+	lock   *sync.RWMutex // Lock for the SSTable.
 }
 
 // New creates a new LSM-tree or opens an existing one.
