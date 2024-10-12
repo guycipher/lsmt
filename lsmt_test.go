@@ -566,3 +566,56 @@ func TestLSMT_LessThanEqual(t *testing.T) {
 		}
 	}
 }
+
+func TestLSMT_Put(t *testing.T) {
+	defer os.RemoveAll("my_lsm_tree")
+	lsmt, err := New("my_lsm_tree", 0755, 1000, 100, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if lsmt == nil {
+		t.Fatal("expected non-nil lmst")
+	}
+
+	defer lsmt.Close()
+
+	// Insert 10000 key-value pairs
+	for i := 0; i < 10000; i++ {
+		err = lsmt.Put([]byte(string(fmt.Sprintf("%d", i))), []byte(string(fmt.Sprintf("%d", i))))
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// there should be 0-9 sstables
+
+	if len(lsmt.sstables) != 9 {
+		t.Fatalf("expected 10 sstables, got %d", len(lsmt.sstables))
+	}
+
+	// Get a key
+	value, err := lsmt.Get([]byte("9982"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if string(value) != "9982" {
+		t.Fatalf("expected 9982, got %s", string(value))
+	}
+
+	expectFiles := []string{"0.sst", "1.sst", "2.sst", "3.sst", "4.sst", "5.sst", "6.sst", "7.sst", "8.sst", "9.sst"}
+
+	// Read the directory
+	files, err := os.ReadDir("my_lsm_tree")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for i, file := range files {
+		if file.Name() != expectFiles[i] {
+			t.Fatalf("expected %s, got %s", expectFiles[i], file.Name())
+		}
+	}
+
+}
