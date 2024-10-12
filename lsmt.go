@@ -519,8 +519,8 @@ func (l *LSMT) Range(start, end []byte) ([][]byte, [][]byte, error) {
 	return keys, values, nil
 }
 
-// NRange retrieves all key-value pairs not equal to the key from the LSM-tree.
-func (l *LSMT) NRange(key []byte) ([][]byte, [][]byte, error) {
+// NRange retrieves all key-value pairs not within a given range from the LSM-tree.
+func (l *LSMT) NRange(start, end []byte) ([][]byte, [][]byte, error) {
 	// We will first check the memtable for the range.
 	// If the range is not found in the memtable, we will search the SSTables.
 
@@ -532,7 +532,7 @@ func (l *LSMT) NRange(key []byte) ([][]byte, [][]byte, error) {
 	var values [][]byte
 
 	l.memtable.InOrderTraversal(func(node *avl.Node) {
-		if bytes.Compare(node.Key, key) != 0 {
+		if bytes.Compare(node.Key, start) < 0 || bytes.Compare(node.Key, end) > 0 {
 			keys = append(keys, node.Key)
 			values = append(values, node.Value)
 		}
@@ -548,6 +548,11 @@ func (l *LSMT) NRange(key []byte) ([][]byte, [][]byte, error) {
 
 		sstable := l.sstables[i]
 
+		// If the range is not within the range of this SSTable, skip it.
+		if bytes.Compare(start, sstable.minKey) < 0 || bytes.Compare(end, sstable.maxKey) > 0 {
+			continue
+		}
+
 		// Read the key-value pairs from the SSTable file.
 		kvs, err := getSSTableKVs(sstable.file)
 		if err != nil {
@@ -556,7 +561,7 @@ func (l *LSMT) NRange(key []byte) ([][]byte, [][]byte, error) {
 
 		// Perform a binary search on the SSTable.
 		for _, kv := range kvs {
-			if bytes.Compare(kv.Key, key) != 0 {
+			if bytes.Compare(kv.Key, start) < 0 || bytes.Compare(kv.Key, end) > 0 {
 				keys = append(keys, kv.Key)
 				values = append(values, kv.Value)
 			}
@@ -564,6 +569,7 @@ func (l *LSMT) NRange(key []byte) ([][]byte, [][]byte, error) {
 	}
 
 	return keys, values, nil
+
 }
 
 // GreaterThan retrieves all key-value pairs greater than the key from the LSM-tree.
