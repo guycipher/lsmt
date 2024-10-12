@@ -168,6 +168,15 @@ func (l *LMST) flushMemtable() error {
 	// Clear the memtable.
 	l.memtable = avl.NewAVLTree()
 
+	// Check the amount of sstables and if we need to compact
+	if len(l.sstables) >= l.compactionInterval {
+		log.Println("Compacting LSM-tree...")
+		if err := l.Compact(); err != nil {
+			return err
+		}
+
+	}
+
 	return nil
 }
 
