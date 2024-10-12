@@ -6,6 +6,10 @@ It features a memory-based AVL tree (memtable) that temporarily holds key-value 
 The package supports basic operations like insertion (Put), retrieval (Get), and deletion (Delete), as well as compaction to optimize storage by merging and removing tombstoned entries.
 Designed with concurrency in mind, it utilizes read-write locks for safe concurrent access.
 
+> [!NOTE]
+> 11th Gen Intel(R) Core(TM) i7-11700K @ 3.60GHz UBuntu with WDC WDS500G2B0A-00SM50(HDD) we put 1 MILLION keys in `523ms` 523 milliseconds
+> *912,577 operations per second.*
+
 ### Usage
 ```go
 // Create a new LSM-tree in the specified directory
