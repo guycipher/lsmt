@@ -39,6 +39,7 @@ type LSMT struct {
 	directory          string        // The directory where the SSTables are stored.
 	memtableFlushSize  int           // The size at which the memtable should be flushed to disk.
 	compactionInterval int           // The interval at which the LSM-tree should be compacted. (in number of SSTables)
+	pairWiseCompaction bool          // Whether to use pair-wise compaction.
 }
 
 // SSTable is a struct representing a sorted string table.
@@ -50,7 +51,7 @@ type SSTable struct {
 }
 
 // New creates a new LSM-tree or opens an existing one.
-func New(directory string, directoryPerm os.FileMode, memtableFlushSize, compactionInterval int) (*LSMT, error) {
+func New(directory string, directoryPerm os.FileMode, memtableFlushSize, compactionInterval int, pairWiseCompaction bool) (*LSMT, error) {
 	if directory == "" {
 		return nil, errors.New("directory cannot be empty")
 	}
@@ -71,6 +72,7 @@ func New(directory string, directoryPerm os.FileMode, memtableFlushSize, compact
 			directory:          directory,
 			memtableFlushSize:  memtableFlushSize,
 			compactionInterval: compactionInterval,
+			pairWiseCompaction: pairWiseCompaction,
 		}, nil
 	} else {
 
@@ -116,6 +118,7 @@ func New(directory string, directoryPerm os.FileMode, memtableFlushSize, compact
 				directory:          directory,
 				memtableFlushSize:  memtableFlushSize,
 				compactionInterval: compactionInterval,
+				pairWiseCompaction: pairWiseCompaction,
 			}, nil
 		}
 
@@ -172,8 +175,14 @@ func (l *LSMT) flushMemtable() error {
 	// Check the amount of sstables and if we need to compact
 	if len(l.sstables) > l.compactionInterval {
 		log.Println("Compacting LSM-tree...")
-		if err := l.Compact(); err != nil {
-			return err
+		if l.pairWiseCompaction {
+			if err := l.CompactPairWise(); err != nil {
+				return err
+			}
+		} else {
+			if err := l.Compact(); err != nil {
+				return err
+			}
 		}
 
 	}
@@ -394,6 +403,60 @@ func (l *LSMT) Close() error {
 			return err
 		}
 	}
+
+	return nil
+}
+
+// CompactPairWise compacts the LSM-tree by merging SSTables in pairs. (rough)
+func (l *LSMT) CompactPairWise() error {
+	// Create two new memtables for the two new SSTables.
+	newMemtable1 := avl.NewAVLTree()
+	newMemtable2 := avl.NewAVLTree()
+
+	// Iterate over the SSTables, distributing key-value pairs into the two memtables.
+	for i, sstable := range l.sstables {
+		kvs, err := getSSTableKVs(sstable.file)
+		if err != nil {
+			return err
+		}
+
+		for _, kv := range kvs {
+			if bytes.Compare(kv.Value, []byte(TOMBSTONE_VALUE)) == 0 {
+				continue // Skip tombstone entries
+			}
+
+			// Distribute the entries into the two memtables.
+			if i%2 == 0 {
+				newMemtable1.Insert(kv.Key, kv.Value)
+			} else {
+				newMemtable2.Insert(kv.Key, kv.Value)
+			}
+		}
+		sstable.file.Close() // Close the SSTable file after reading.
+
+		// Remove the old SSTable file from disk
+		err = os.Remove(sstable.file.Name())
+		if err != nil {
+			return err // Handle the error if file removal fails
+		}
+	}
+
+	// Clear existing SSTables.
+	l.sstables = make([]*SSTable, 0)
+
+	// Flush the new memtables to disk, creating two new SSTables.
+	newSSTable1, err := l.newSSTable(l.directory, newMemtable1)
+	if err != nil {
+		return err
+	}
+
+	newSSTable2, err := l.newSSTable(l.directory, newMemtable2)
+	if err != nil {
+		return err
+	}
+
+	// Add the newly created SSTables to the list.
+	l.sstables = []*SSTable{newSSTable1, newSSTable2}
 
 	return nil
 }
