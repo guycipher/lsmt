@@ -329,6 +329,26 @@ func (l *LMST) Compact() error {
 				newMemtable.Insert(kv.Key, kv.Value)
 			}
 		}
+
+		sstable.file.Close() // Close the SSTable file.
+	}
+
+	// We remove all the sstables in the directory lmst directory..
+	files, err := os.ReadDir(l.directory)
+	if err != nil {
+		return err
+	}
+
+	for _, file := range files {
+		if file.IsDir() {
+			continue
+		}
+
+		if !strings.HasSuffix(file.Name(), SSTABLE_EXTENSION) {
+			continue
+		}
+
+		err = os.Remove(l.directory)
 	}
 
 	// Flush the new memtable to disk, creating a new SSTable.
