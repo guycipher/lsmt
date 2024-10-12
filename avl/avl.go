@@ -55,6 +55,7 @@ func max(a, b int) int {
 	return b
 }
 
+// rightRotate rotates the node to the right.
 func rightRotate(y *Node) *Node {
 	x := y.Left
 	T2 := x.Right
@@ -68,6 +69,7 @@ func rightRotate(y *Node) *Node {
 	return x
 }
 
+// leftRotate rotates the node to the left.
 func leftRotate(x *Node) *Node {
 	y := x.Right
 	T2 := y.Left
@@ -81,6 +83,7 @@ func leftRotate(x *Node) *Node {
 	return y
 }
 
+// getBalance returns the balance factor of the node.
 func getBalance(N *Node) int {
 	if N == nil {
 		return 0
@@ -88,10 +91,12 @@ func getBalance(N *Node) int {
 	return height(N.Left) - height(N.Right)
 }
 
+// Insert inserts a node with the given key and value into the AVL tree.
 func (t *AVLTree) Insert(key, val []byte) {
 	t.Root = t.insert(t.Root, key, val) // Update the root after insertion
 }
 
+// insert inserts a node with the given key and value into the AVL tree.
 func (t *AVLTree) insert(node *Node, key, val []byte) *Node {
 	if node == nil {
 		return &Node{Key: key, Height: 1, Value: val}
@@ -130,10 +135,12 @@ func (t *AVLTree) insert(node *Node, key, val []byte) *Node {
 	return node
 }
 
+// Search searches for a node with the given key in the AVL tree.
 func (t *AVLTree) Search(key []byte) *Node {
 	return t.search(t.Root, key)
 }
 
+// search searches for a node with the given key in the AVL tree.
 func (t *AVLTree) search(node *Node, key []byte) *Node {
 	if node == nil || bytes.Compare(node.Key, key) == 0 {
 		return node
@@ -144,10 +151,12 @@ func (t *AVLTree) search(node *Node, key []byte) *Node {
 	return t.search(node.Right, key)
 }
 
+// InOrderTraversal traverses the AVL tree in-order.
 func (t *AVLTree) InOrderTraversal(f func(*Node)) {
 	t.inOrderTraversal(t.Root, f)
 }
 
+// inOrderTraversal traverses the AVL tree in-order.
 func (t *AVLTree) inOrderTraversal(node *Node, f func(*Node)) {
 	if node != nil {
 		t.inOrderTraversal(node.Left, f)
@@ -156,6 +165,7 @@ func (t *AVLTree) inOrderTraversal(node *Node, f func(*Node)) {
 	}
 }
 
+// Print prints the AVL tree in-order. (for debugging)
 func (t *AVLTree) Print(node *Node) {
 	if node != nil {
 		t.Print(node.Left)
@@ -164,6 +174,7 @@ func (t *AVLTree) Print(node *Node) {
 	}
 }
 
+// GetInOrderKeys returns the keys of the AVL tree in-order.
 func (t *AVLTree) GetInOrderKeys() ([][]byte, [][]byte) {
 	var keys [][]byte
 	var values [][]byte
@@ -183,10 +194,12 @@ func BuildAVLFromKeys(keys [][]byte, values [][]byte) *AVLTree {
 	return t
 }
 
+// Delete deletes the node with the given key from the AVL tree.
 func (t *AVLTree) Delete(key []byte) {
 	t.Root = t.delete(t.Root, key)
 }
 
+// delete deletes the node with the given key from the AVL tree.
 func (t *AVLTree) delete(node *Node, key []byte) *Node {
 	if node == nil {
 		return node
@@ -239,6 +252,7 @@ func (t *AVLTree) delete(node *Node, key []byte) *Node {
 	return node
 }
 
+// getMaxNode returns the node with the maximum key in the subtree rooted at node.
 func (t *AVLTree) getMaxNode(node *Node) *Node {
 	if node == nil || node.Right == nil {
 		return node
@@ -251,6 +265,7 @@ func (t *AVLTree) GetSize() int {
 	return t.getSize(t.Root)
 }
 
+// getSize returns the number of nodes in the subtree rooted at node.
 func (t *AVLTree) getSize(node *Node) int {
 	if node == nil {
 		return 0
@@ -258,6 +273,7 @@ func (t *AVLTree) getSize(node *Node) int {
 	return 1 + t.getSize(node.Left) + t.getSize(node.Right)
 }
 
+// InOrderKeys returns the keys of the AVL tree in-order.
 func (t *AVLTree) InOrderKeys() [][]byte {
 	var keys [][]byte
 	t.InOrderTraversal(func(node *Node) {
