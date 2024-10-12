@@ -31,13 +31,13 @@ const SSTABLE_EXTENSION = ".sst"
 
 // LMST is the main struct for the log-structured merge-tree.
 type LMST struct {
-	memtable           *avl.AVLTree
-	memtableLock       *sync.RWMutex
-	sstables           []*SSTable
-	sstablesLock       *sync.RWMutex
-	directory          string
-	memtableFlushSize  int
-	compactionInterval int
+	memtable           *avl.AVLTree  // The memtable is an in-memory AVL tree.
+	memtableLock       *sync.RWMutex // Lock for the memtable.
+	sstables           []*SSTable    // The list of current SSTables.
+	sstablesLock       *sync.RWMutex // Lock for the list of SSTables.
+	directory          string        // The directory where the SSTables are stored.
+	memtableFlushSize  int           // The size at which the memtable should be flushed to disk.
+	compactionInterval int           // The interval at which the LSM-tree should be compacted. (in number of SSTables)
 }
 
 // SSTable is a struct representing a sorted string table.
