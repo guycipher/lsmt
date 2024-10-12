@@ -61,11 +61,11 @@ if err != nil {
 To get all keys not equal to the key you can use the ``NGet`` method.
 ```go
 // Assume lst is already created and populated
-value, err := lst.NGet([]byte("key1"))
+keys, values, err:= lst.NGet([]byte("key1"))
 if err != nil {
     fmt.Println("Error retrieving key1:", err)
 } else {
-    fmt.Println("Retrieved value for key1:", string(value))
+    fmt.Println("Retrieved values not equal to key1:", string(value))
 }
 ```
 
@@ -110,7 +110,7 @@ for i, key := range keys {
 Get all keys greater than key1
 ```go
 // Assume lst is already created and populated
-keys, err := lst.GreaterThan([]byte("key1"))
+keys, values, err := lst.GreaterThan([]byte("key1"))
 if err != nil {
     fmt.Println("Error retrieving key1:", err)
 } else {
@@ -122,7 +122,7 @@ if err != nil {
 Get all keys greater than or equal to key1
 ```go
 // Assume lst is already created and populated
-keys, err := lst.GreaterThanEqual([]byte("key1"))
+keys, values, err := lst.GreaterThanEqual([]byte("key1"))
 if err != nil {
     fmt.Println("Error retrieving key1:", err)
 } else {
@@ -134,7 +134,7 @@ if err != nil {
 Get all keys less than key1
 ```go
 // Assume lst is already created and populated
-keys, err := lst.LessThan([]byte("key1"))
+keys, values, err := lst.LessThan([]byte("key1"))
 if err != nil {
     fmt.Println("Error retrieving key1:", err)
 } else {
@@ -146,7 +146,7 @@ if err != nil {
 Get all keys less than or equal to key1
 ```go
 // Assume lst is already created and populated
-keys, err := lst.LessThanEqual([]byte("key1"))
+keys, values, err := lst.LessThanEqual([]byte("key1"))
 if err != nil {
     fmt.Println("Error retrieving key1:", err)
 } else {
