@@ -30,6 +30,8 @@ fmt.Println("LSM-tree created successfully!")
 ```
 
 ### Put
+You can insert a value into a key using the ``Put`` method.
+If you try to insert a key that already exists, the value will be updated.
 ```go
 // Assume lst is already created
 // Insert key-value pairs into the LSM-tree
@@ -44,6 +46,7 @@ fmt.Println("Key-value pairs inserted successfully!")
 ```
 
 ### Get
+To get a value you can you the ``Get`` method.  The get method will return all the keys values.
 ```go
 // Assume lst is already created and populated
 value, err := lst.Get([]byte("key1"))
@@ -54,13 +57,100 @@ if err != nil {
 }
 ```
 
+### NGet
+To get all keys not equal to the key you can use the ``NGet`` method.
+```go
+// Assume lst is already created and populated
+value, err := lst.NGet([]byte("key1"))
+if err != nil {
+    fmt.Println("Error retrieving key1:", err)
+} else {
+    fmt.Println("Retrieved value for key1:", string(value))
+}
+```
+
 ### Delete
+Delete key2
 ```go
 // Assume lst is already created
 if err := lst.Delete([]byte("key2")); err != nil {
     fmt.Println("Error deleting key2:", err)
 } else {
     fmt.Println("key2 marked for deletion.")
+}
+```
+
+### Range
+Get all keys between key56 and key100
+```go
+// Assume lst is already created and populated
+keys, values, err := l.Range([]byte("key56"), []byte("key100"))
+if err != nil {
+    log.Fatal(err)
+}
+for i, key := range keys {
+    fmt.Printf("Key: %s, Value: %s\n", string(key), string(values[i]))
+}
+```
+
+### NRange
+Get all keys not between key1 and key3
+```go
+// Assume lst is already created and populated
+keys, values, err := l.NRange([]byte("key1"), []byte("key3"))
+if err != nil {
+    log.Fatal(err)
+}
+for i, key := range keys {
+    fmt.Printf("Key: %s, Value: %s\n", string(key), string(values[i]))
+}
+```
+
+### GreaterThan
+Get all keys greater than key1
+```go
+// Assume lst is already created and populated
+keys, err := lst.GreaterThan([]byte("key1"))
+if err != nil {
+    fmt.Println("Error retrieving key1:", err)
+} else {
+    fmt.Println("Retrieved value for key1:", string(value))
+}
+```
+
+### GreaterThanEqual
+Get all keys greater than or equal to key1
+```go
+// Assume lst is already created and populated
+keys, err := lst.GreaterThanEqual([]byte("key1"))
+if err != nil {
+    fmt.Println("Error retrieving key1:", err)
+} else {
+    fmt.Println("Retrieved value for key1:", string(value))
+}
+```
+
+### LessThan
+Get all keys less than key1
+```go
+// Assume lst is already created and populated
+keys, err := lst.LessThan([]byte("key1"))
+if err != nil {
+    fmt.Println("Error retrieving key1:", err)
+} else {
+    fmt.Println("Retrieved value for key1:", string(value))
+}
+```
+
+### LessThanEqual
+Get all keys less than or equal to key1
+```go
+// Assume lst is already created and populated
+keys, err := lst.LessThanEqual([]byte("key1"))
+if err != nil {
+    fmt.Println("Error retrieving key1:", err)
+} else {
+    fmt.Println("Retrieved value for key1:", string(value))
 }
 ```
 
