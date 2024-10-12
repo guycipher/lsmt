@@ -1,4 +1,4 @@
-// Package lmst provides a single-level embedded log-structured merge-tree (LSM-tree)
+// Package lsmt provides a single-level embedded log-structured merge-tree (LSM-tree)
 // Copyright (C) Alex Gaetano Padula
 //
 // This program is free software: you can redistribute it and/or modify
@@ -13,15 +13,15 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
-package lmst
+package lsmt
 
 import (
 	"bytes"
 	"encoding/gob"
 	"errors"
 	"fmt"
-	"lmst/avl"
 	"log"
+	"lsmt/avl"
 	"os"
 	"strings"
 	"sync"
@@ -30,8 +30,8 @@ import (
 const SSTABLE_EXTENSION = ".sst"
 const TOMBSTONE_VALUE = "$tombstone"
 
-// LMST is the main struct for the log-structured merge-tree.
-type LMST struct {
+// LSMT is the main struct for the log-structured merge-tree.
+type LSMT struct {
 	memtable           *avl.AVLTree  // The memtable is an in-memory AVL tree.
 	memtableLock       *sync.RWMutex // Lock for the memtable.
 	sstables           []*SSTable    // The list of current SSTables.
@@ -50,7 +50,7 @@ type SSTable struct {
 }
 
 // New creates a new LSM-tree or opens an existing one.
-func New(directory string, directoryPerm os.FileMode, memtableFlushSize, compactionInterval int) (*LMST, error) {
+func New(directory string, directoryPerm os.FileMode, memtableFlushSize, compactionInterval int) (*LSMT, error) {
 	if directory == "" {
 		return nil, errors.New("directory cannot be empty")
 	}
@@ -63,7 +63,7 @@ func New(directory string, directoryPerm os.FileMode, memtableFlushSize, compact
 			return nil, err
 		}
 
-		return &LMST{
+		return &LSMT{
 			memtable:           avl.NewAVLTree(),
 			memtableLock:       &sync.RWMutex{},
 			sstables:           make([]*SSTable, 0),
@@ -108,7 +108,7 @@ func New(directory string, directoryPerm os.FileMode, memtableFlushSize, compact
 			// Add the SSTable to the list of SSTables
 			sstables = append(sstables, sstable)
 
-			return &LMST{
+			return &LSMT{
 				memtable:           avl.NewAVLTree(),
 				memtableLock:       &sync.RWMutex{},
 				sstables:           sstables,
@@ -126,7 +126,7 @@ func New(directory string, directoryPerm os.FileMode, memtableFlushSize, compact
 }
 
 // Put inserts a key-value pair into the LSM-tree.
-func (l *LMST) Put(key, value []byte) error {
+func (l *LSMT) Put(key, value []byte) error {
 	// We will first put the key-value pair in the memtable.
 	// If the memtable size exceeds the flush size, we will flush the memtable to disk.
 
@@ -149,7 +149,7 @@ func (l *LMST) Put(key, value []byte) error {
 }
 
 // flushMemtable flushes the memtable to disk, creating a new SSTable.
-func (l *LMST) flushMemtable() error {
+func (l *LSMT) flushMemtable() error {
 	// We will create a new SSTable from the memtable and add it to the list of SSTables.
 	// We will then clear the memtable.
 
@@ -188,7 +188,7 @@ type KeyValue struct {
 }
 
 // newSSTable creates a new SSTable file from the memtable.
-func (l *LMST) newSSTable(directory string, memtable *avl.AVLTree) (*SSTable, error) {
+func (l *LSMT) newSSTable(directory string, memtable *avl.AVLTree) (*SSTable, error) {
 
 	// Create a sorted map from the memtable which will be used to create the SSTable.
 
@@ -239,7 +239,7 @@ func getSSTableKVs(file *os.File) ([]*KeyValue, error) {
 }
 
 // Get retrieves the value for a given key from the LSM-tree.
-func (l *LMST) Get(key []byte) ([]byte, error) {
+func (l *LSMT) Get(key []byte) ([]byte, error) {
 	// We will first check the memtable for the key.
 	// If the key is not found in the memtable, we will search the SSTables.
 
@@ -289,7 +289,7 @@ func (l *LMST) Get(key []byte) ([]byte, error) {
 }
 
 // Delete removes a key from the LSM-tree.
-func (l *LMST) Delete(key []byte) error {
+func (l *LSMT) Delete(key []byte) error {
 	// We will write a tombstone value to the memtable for the key.
 
 	// Lock memtable for writing.
@@ -322,7 +322,7 @@ func binarySearch(kvs []*KeyValue, key []byte) int {
 }
 
 // Compact compacts the LSM-tree by merging all SSTables into a single SSTable.
-func (l *LMST) Compact() error {
+func (l *LSMT) Compact() error {
 	// Create a new empty memtable.
 	newMemtable := avl.NewAVLTree()
 
@@ -387,7 +387,7 @@ func (l *LMST) Compact() error {
 }
 
 // Close closes the LSM-tree gracefully closing all opened SSTable files.
-func (l *LMST) Close() error {
+func (l *LSMT) Close() error {
 	// Close all SSTable files.
 	for _, sstable := range l.sstables {
 		if err := sstable.file.Close(); err != nil {
