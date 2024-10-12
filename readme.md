@@ -1,6 +1,8 @@
 ## LMST package
 The lmst package provides a single level embedded log structured merge tree (LSMT) written completely in GO for efficient data storage and retrieval.
+
 It features a memory-based AVL tree (memtable) that temporarily holds key-value pairs before flushing them to sorted string tables (SSTables) on disk.
+
 The package supports basic operations like insertion (Put), retrieval (Get), and deletion (Delete), as well as compaction to optimize storage by merging and removing tombstoned entries.
 Designed with concurrency in mind, it utilizes read-write locks for safe concurrent access.
 
