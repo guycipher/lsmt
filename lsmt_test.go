@@ -23,7 +23,7 @@ import (
 
 func TestNew(t *testing.T) {
 	defer os.RemoveAll("my_lsm_tree")
-	lsmt, err := New("my_lsm_tree", 0755, 128, 2)
+	lsmt, err := New("my_lsm_tree", 0755, 128, 2, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -41,7 +41,7 @@ func TestNew(t *testing.T) {
 
 func TestLMST_Put(t *testing.T) {
 	defer os.RemoveAll("my_lsm_tree")
-	lsmt, err := New("my_lsm_tree", 0755, 128, 2)
+	lsmt, err := New("my_lsm_tree", 0755, 128, 2, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,7 +82,7 @@ func TestLMST_Put(t *testing.T) {
 
 func TestLMST_Compact(t *testing.T) {
 	defer os.RemoveAll("my_lsm_tree")
-	lsmt, err := New("my_lsm_tree", 0755, 128, 2)
+	lsmt, err := New("my_lsm_tree", 0755, 128, 2, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -116,7 +116,7 @@ func TestLMST_Compact(t *testing.T) {
 
 func TestLMST_Delete(t *testing.T) {
 	defer os.RemoveAll("my_lsm_tree")
-	lsmt, err := New("my_lsm_tree", 0755, 128, 2)
+	lsmt, err := New("my_lsm_tree", 0755, 128, 2, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -170,7 +170,7 @@ func TestLMST_Delete(t *testing.T) {
 
 func TestLMST_Get(t *testing.T) {
 	defer os.RemoveAll("my_lsm_tree")
-	lsmt, err := New("my_lsm_tree", 0755, 15_000, 2)
+	lsmt, err := New("my_lsm_tree", 0755, 15_000, 2, false)
 	if err != nil {
 		t.Fatal(err)
 	}
