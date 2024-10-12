@@ -135,6 +135,11 @@ func (l *LSMT) Put(key, value []byte) error {
 	// We will first put the key-value pair in the memtable.
 	// If the memtable size exceeds the flush size, we will flush the memtable to disk.
 
+	// Check if value is tombstone
+	if bytes.Compare(value, []byte(TOMBSTONE_VALUE)) == 0 {
+		return errors.New("value cannot be a tombstone")
+	}
+
 	// Lock memtable for writing.
 	l.memtableLock.Lock()
 	defer l.memtableLock.Unlock()
