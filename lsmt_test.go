@@ -197,3 +197,57 @@ func TestLMST_Get(t *testing.T) {
 		t.Fatalf("expected 99822, got %s", string(value))
 	}
 }
+
+func TestLSMT_NGet(t *testing.T) {
+	defer os.RemoveAll("my_lsm_tree")
+	lsmt, err := New("my_lsm_tree", 0755, 128, 2, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if lsmt == nil {
+		t.Fatal("expected non-nil lmst")
+	}
+
+	for i := 0; i < 10; i++ {
+		err = lsmt.Put([]byte(string(fmt.Sprintf("%d", i))), []byte(string(fmt.Sprintf("%d", i))))
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	keys, _, err := lsmt.NGet([]byte("4"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(keys) != 9 {
+		t.Fatalf("expected 9 keys, got %d", len(keys))
+	}
+
+	expectKeys := [][]byte{
+		[]byte("0"),
+		[]byte("1"),
+		[]byte("2"),
+		[]byte("3"),
+		[]byte("5"),
+		[]byte("6"),
+		[]byte("7"),
+		[]byte("8"),
+		[]byte("9"),
+	}
+
+	for _, key := range keys {
+		for j, expectKey := range expectKeys {
+			if string(key) == string(expectKey) {
+				// remove the key from the expectKeys
+				expectKeys = append(expectKeys[:j], expectKeys[j+1:]...)
+				break
+			}
+			if j == len(expectKeys)-1 {
+				t.Fatalf("expected key to be %s, got %s", string(expectKey), string(key))
+			}
+		}
+	}
+
+}
