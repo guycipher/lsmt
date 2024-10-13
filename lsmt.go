@@ -1092,6 +1092,7 @@ func (l *LSMT) RollbackTransaction(tx *Transaction) {
 	tx.Aborted = true
 	for i, t := range l.activeTransactions {
 		if t == tx {
+			// Remove the transaction from the active list.
 			l.activeTransactions = append(l.activeTransactions[:i], l.activeTransactions[i+1:]...)
 			break
 		}
