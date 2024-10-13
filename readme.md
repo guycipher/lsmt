@@ -24,6 +24,9 @@ That is roughly *1,912,577 operations per second.*
 - `Tombstones for Deletions` - Instead of physically removing key-value pairs from SSTables, tombstones are written to represent deletions. This avoids the overhead of immediate compaction and allows the system to manage deletions in a more efficient way.
 - `File Management` - The implementation supports splitting large SSTables into smaller ones, which can help maintain read performance by keeping SSTables manageable in size.
 - `Lazy Loading of SSTables` - SSTables are only loaded into memory when necessary, minimizing memory usage and startup time.
+- `WAL for Durability` - The implementation uses a write-ahead log (WAL) to ensure durability. The WAL records all write operations before they are applied to the memtable, providing a way to recover the system in case of a crash.
+- `Transaction Support` - The implementation supports transactions, allowing multiple write operations to be grouped together and applied atomically to the memtable.
+
 
 ### Usage
 ```go
