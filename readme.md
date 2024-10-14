@@ -9,9 +9,12 @@ Compaction is triggered when the number of SSTables reaches a certain threshold,
 ### v1.4.0 Benchmark
 11th Gen Intel(R) Core(TM) i7-11700K @ 3.60GHz UBuntu with WDC WDS500G2B0A-00SM50(HDD)
 
-We put 1 MILLION keys in `11.84974657s`
+We put 1 MILLION keys in `8.5s` 8 seconds
+Write speed is roughly `117,647` keys per `second` with this setup.
+<div>
+    <h1 align="center"><img width="328" src="bench.png"></h1>
+</div>
 
-That is roughly **84,400 operations per second.**
 
 
 <div>
