@@ -37,7 +37,7 @@ Write speed is roughly `117,647` keys per `second` with this setup.
 ### Usage
 Importing
 ```
-github.com/guycipher/lsmt
+import("github.com/guycipher/lsmt")
 ```
 
 ```go
