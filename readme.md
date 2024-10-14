@@ -30,7 +30,7 @@ Write speed is roughly `117,647` keys per `second` with this setup.
 - `Concurrent Access` -  The use of read-write mutexes allows concurrent reads while ensuring safe writes to the memtable, which can improve performance in multi-threaded environments.
 - `Tombstones for Deletions` - Instead of physically removing key-value pairs from SSTables, tombstones are written to represent deletions. This avoids the overhead of immediate compaction and allows the system to manage deletions in a more efficient way.
 - `File Management` - The implementation supports splitting large SSTables into smaller ones, which can help maintain read performance by keeping SSTables manageable in size.
-- `Lazy Loading of SSTables` - SSTables are only loaded into memory when necessary, minimizing memory usage and startup time.
+- `Paged SSTables` - The use of paged SSTables allows for efficient disk I/O operations by reading and writing data in fixed-size pages. This can improve read and write performance by reducing the amount of data transferred between memory and disk.
 - `WAL for Durability` - The implementation uses a write-ahead log (WAL) to ensure durability. The WAL records all write operations before they are applied to the memtable, providing a way to recover the system in case of a crash.
 - `Transaction Support` - The implementation supports transactions, allowing multiple write operations to be grouped together and applied atomically to the memtable.
 
