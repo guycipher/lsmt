@@ -29,12 +29,17 @@ That is roughly *1,912,577 operations per second.*
 
 
 ### Usage
+Importing
+```
+pkg.go.dev/github.com/guycipher/lsmt
+```
+
 ```go
 // Create a new LSM-tree in the specified directory
 directory := "data"
 
 // You can specify the directory, file permissions, max memtable size (amount of keyv's), and compaction interval (amount of ssTables before compaction), amount of minimum sstables after compaction
-l, err := lmst.New(directory, os.ModePerm(0777), 10, 5, 2)
+l, err := lsmt.New(directory, os.ModePerm(0777), 10, 5, 2)
 if err != nil {
     fmt.Println("Error creating LSM-tree:", err)
     return
