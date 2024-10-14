@@ -39,7 +39,7 @@ github.com/guycipher/lsmt
 directory := "data"
 
 // You can specify the directory, file permissions, max memtable size (amount of keyv's), and compaction interval (amount of ssTables before compaction), amount of minimum sstables after compaction
-l, err := lsmt.New(directory, os.ModePerm(0777), 10, 5, 2)
+l, err := lsmt.New(directory, os.FileMode(0777), 10, 5, 2)
 if err != nil {
     fmt.Println("Error creating LSM-tree:", err)
     return
