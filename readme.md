@@ -1,9 +1,9 @@
 ## LSMT package
-The lsmt package provides a single level embedded log structured merge tree (LSMT) written completely in GO for efficient data storage and retrieval.
+LSMT is a robust, single-level embedded Log Structured Merge Tree implementation, developed entirely in Go. It is designed to deliver efficient data storage and retrieval solutions.
 
-It features a memory-based AVL tree (memtable) that temporarily holds key-value pairs before flushing them to sorted string tables (SSTables) on disk.
+This package utilizes an in-memory AVL tree, known as a memtable, for temporarily storing key-value pairs. These pairs are then flushed to Sorted String Tables (SSTables) on disk. When the number of SSTables reaches a specified threshold, the compaction process is triggered.
 
-Compaction is triggered when the number of SSTables reaches a certain threshold, and the SSTables are merged to reduce the number of files and improve read performance.
+This process merges multiple SSTables into fewer ones, reducing file count and minimizing disk I/O for read operations. Additionally, the system maintains a minimum number of SSTables to further optimize read performance.
 
 ## Benchmarking
 ### v1.4.0 Benchmark
