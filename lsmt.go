@@ -26,7 +26,6 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
-	"time"
 )
 
 const SSTABLE_EXTENSION = ".sst"
@@ -470,9 +469,11 @@ func (l *LSMT) Get(key []byte) ([]byte, error) {
 	// If the key is not found in the memtable, we will search the SSTables.
 
 	// Check if we are flushing or compacting
+	l.cond.L.Lock()
 	for l.isFlushing.Load() == 1 || l.isCompacting.Load() == 1 {
-		time.Sleep(10 * time.Nanosecond)
+		l.cond.Wait()
 	}
+	l.cond.L.Unlock()
 
 	// Lock memtable for reading.
 	l.memtableLock.RLock()
@@ -533,10 +534,12 @@ func (l *LSMT) Get(key []byte) ([]byte, error) {
 
 // Delete removes a key from the LSM-tree.
 func (l *LSMT) Delete(key []byte) error {
-	// Check if we are flushing
-	for l.isFlushing.Load() == 1 {
-		time.Sleep(10 * time.Nanosecond)
+	// Check if we are flushing or compacting
+	l.cond.L.Lock()
+	for l.isFlushing.Load() == 1 || l.isCompacting.Load() == 1 {
+		l.cond.Wait()
 	}
+	l.cond.L.Unlock()
 
 	// Append the operation to the write-ahead log.
 	err := l.wal.WriteOperation(Operation{
@@ -763,6 +766,13 @@ func (l *LSMT) Range(start, end []byte) ([][]byte, [][]byte, error) {
 	// We will first check the memtable for the range.
 	// If the range is not found in the memtable, we will search the SSTables.
 
+	// Check if we are flushing or compacting
+	l.cond.L.Lock()
+	for l.isFlushing.Load() == 1 || l.isCompacting.Load() == 1 {
+		l.cond.Wait()
+	}
+	l.cond.L.Unlock()
+
 	// Lock memtable for reading.
 	l.memtableLock.RLock()
 
@@ -825,6 +835,13 @@ func (l *LSMT) Range(start, end []byte) ([][]byte, [][]byte, error) {
 func (l *LSMT) NRange(start, end []byte) ([][]byte, [][]byte, error) {
 	// We will first check the memtable for the range.
 	// If the range is not found in the memtable, we will search the SSTables.
+
+	// Check if we are flushing or compacting
+	l.cond.L.Lock()
+	for l.isFlushing.Load() == 1 || l.isCompacting.Load() == 1 {
+		l.cond.Wait()
+	}
+	l.cond.L.Unlock()
 
 	// Lock memtable for reading.
 	l.memtableLock.RLock()
@@ -890,6 +907,13 @@ func (l *LSMT) GreaterThan(key []byte) ([][]byte, [][]byte, error) {
 	// We will first check the memtable for the range.
 	// If the range is not found in the memtable, we will search the SSTables.
 
+	// Check if we are flushing or compacting
+	l.cond.L.Lock()
+	for l.isFlushing.Load() == 1 || l.isCompacting.Load() == 1 {
+		l.cond.Wait()
+	}
+	l.cond.L.Unlock()
+
 	// Lock memtable for reading.
 	l.memtableLock.RLock()
 
@@ -948,6 +972,13 @@ func (l *LSMT) GreaterThanEqual(key []byte) ([][]byte, [][]byte, error) {
 	// We will first check the memtable for the range.
 	// If the range is not found in the memtable, we will search the SSTables.
 
+	// Check if we are flushing or compacting
+	l.cond.L.Lock()
+	for l.isFlushing.Load() == 1 || l.isCompacting.Load() == 1 {
+		l.cond.Wait()
+	}
+	l.cond.L.Unlock()
+
 	// Lock memtable for reading.
 	l.memtableLock.RLock()
 
@@ -1004,6 +1035,13 @@ func (l *LSMT) GreaterThanEqual(key []byte) ([][]byte, [][]byte, error) {
 func (l *LSMT) LessThan(key []byte) ([][]byte, [][]byte, error) {
 	// We will first check the memtable for the range.
 	// If the range is not found in the memtable, we will search the SSTables.
+
+	// Check if we are flushing or compacting
+	l.cond.L.Lock()
+	for l.isFlushing.Load() == 1 || l.isCompacting.Load() == 1 {
+		l.cond.Wait()
+	}
+	l.cond.L.Unlock()
 
 	// Lock memtable for reading.
 	l.memtableLock.RLock()
@@ -1063,6 +1101,13 @@ func (l *LSMT) LessThanEqual(key []byte) ([][]byte, [][]byte, error) {
 	// We will first check the memtable for the range.
 	// If the range is not found in the memtable, we will search the SSTables.
 
+	// Check if we are flushing or compacting
+	l.cond.L.Lock()
+	for l.isFlushing.Load() == 1 || l.isCompacting.Load() == 1 {
+		l.cond.Wait()
+	}
+	l.cond.L.Unlock()
+
 	// Lock memtable for reading.
 	l.memtableLock.RLock()
 
@@ -1119,6 +1164,13 @@ func (l *LSMT) LessThanEqual(key []byte) ([][]byte, [][]byte, error) {
 func (l *LSMT) NGet(key []byte) ([][]byte, [][]byte, error) {
 	// We will first check the memtable for the range.
 	// If the range is not found in the memtable, we will search the SSTables.
+
+	// Check if we are flushing or compacting
+	l.cond.L.Lock()
+	for l.isFlushing.Load() == 1 || l.isCompacting.Load() == 1 {
+		l.cond.Wait()
+	}
+	l.cond.L.Unlock()
 
 	// Lock memtable for reading.
 	l.memtableLock.RLock()
