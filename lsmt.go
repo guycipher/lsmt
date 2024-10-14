@@ -305,7 +305,8 @@ func (l *LSMT) Put(key, value []byte) error {
 			return err
 		}
 	} else {
-		l.memtableSize.Swap(l.memtableSize.Load() + 1)
+		l.memtableSize.Store(l.memtableSize.Load() + 1)
+
 	}
 
 	return nil
@@ -413,13 +414,13 @@ func encodeKv(kv *KeyValue) ([]byte, error) {
 
 // decodeKv
 func decodeKv(data []byte) (*KeyValue, error) {
-	var kv *KeyValue
+	var kv KeyValue
 	dec := gob.NewDecoder(bytes.NewReader(data))
-	err := dec.Decode(kv)
+	err := dec.Decode(&kv)
 	if err != nil {
-		return kv, err
+		return nil, err
 	}
-	return kv, nil
+	return &kv, nil
 
 }
 
@@ -448,18 +449,19 @@ func (l *LSMT) Get(key []byte) ([]byte, error) {
 	for i := len(l.sstables) - 1; i >= 0; i-- {
 		// Lock the SSTable for reading.
 		l.sstablesLock.RLock()
-		defer l.sstablesLock.RUnlock()
 
 		sstable := l.sstables[i]
 
 		// If the key is not within the range of this SSTable, skip it.
 		if bytes.Compare(key, sstable.minKey) < 0 || bytes.Compare(key, sstable.maxKey) > 0 {
+			l.sstablesLock.RUnlock()
 			continue
 		}
 
 		// Get an iterator for the SSTable file.
 		it, err := getSSTableIterator(sstable.pager)
 		if err != nil {
+			l.sstablesLock.RUnlock()
 			return nil, err
 		}
 
@@ -469,13 +471,17 @@ func (l *LSMT) Get(key []byte) ([]byte, error) {
 			if err == io.EOF {
 				break
 			} else if err != nil {
+				l.sstablesLock.RUnlock()
 				return nil, err
 			}
 
 			if bytes.Compare(kv.Key, key) == 0 {
+				l.sstablesLock.RUnlock()
 				return kv.Value, nil
 			}
 		}
+
+		l.sstablesLock.RUnlock()
 	}
 
 	return nil, errors.New("key not found")

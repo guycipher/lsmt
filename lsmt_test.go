@@ -17,8 +17,10 @@ package lsmt
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"testing"
+	"time"
 )
 
 func TestNew(t *testing.T) {
@@ -565,4 +567,44 @@ func TestLSMT_Put(t *testing.T) {
 		t.Fatalf("expected 9982, got %s", string(value))
 	}
 
+}
+
+func TestLSMT_Case(t *testing.T) {
+	defer os.RemoveAll("my_lsm_tree")
+	l, err := New("my_lsm_tree", 0755, 100000, 2, 10)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if l == nil {
+		log.Fatal("expected non-nil lmst")
+	}
+
+	defer l.Close()
+
+	tt := time.Now()
+
+	// Insert 1000000 key-value pairs
+	for i := 0; i < 1000000; i++ {
+		err = l.Put([]byte(string(fmt.Sprintf("%d", i))), []byte(string(fmt.Sprintf("%d", i))))
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	log.Println("Write 1000000 elements in", time.Since(tt))
+
+	tt = time.Now()
+
+	// Get a key
+	value, err := l.Get([]byte("834332"))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if string(value) != "834332" {
+		log.Fatalf("expected 834332, got %s", string(value))
+	}
+
+	log.Println("Get key 834332 in", time.Since(tt))
 }
