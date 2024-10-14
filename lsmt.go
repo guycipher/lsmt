@@ -86,6 +86,7 @@ type Transaction struct {
 type SSTableIterator struct {
 	pager       *Pager
 	currentPage int64
+	maxPages    int64
 }
 
 // New creates a new LSM-tree or opens an existing one.
@@ -260,7 +261,7 @@ func (l *LSMT) RunRecoveredOperations(operations []Operation) error {
 }
 
 func (it *SSTableIterator) Ok() bool {
-	return it.currentPage < it.pager.Count()
+	return it.currentPage < it.maxPages
 }
 
 // Next returns the next key-value pair from the SSTable.
@@ -315,7 +316,8 @@ func (l *LSMT) Put(key, value []byte) error {
 // getSSTableIterator returns an iterator for the SSTable.
 func getSSTableIterator(pager *Pager) (*SSTableIterator, error) {
 	return &SSTableIterator{
-		pager: pager,
+		pager:    pager,
+		maxPages: pager.PagesCount(),
 	}, nil
 }
 
@@ -398,6 +400,7 @@ func (l *LSMT) newSSTable(directory string, memtable *avl.AVLTree) (*SSTable, er
 		minKey: sstableSlice[0].Key,
 		maxKey: sstableSlice[len(sstableSlice)-1].Key,
 		lock:   &sync.RWMutex{},
+		pager:  ssltablePager,
 	}, nil
 }
 
@@ -447,21 +450,21 @@ func (l *LSMT) Get(key []byte) ([]byte, error) {
 
 	// Search the SSTables for the key.
 	for i := len(l.sstables) - 1; i >= 0; i-- {
-		// Lock the SSTable for reading.
-		l.sstablesLock.RLock()
 
 		sstable := l.sstables[i]
 
+		sstable.lock.RLock()
+
 		// If the key is not within the range of this SSTable, skip it.
 		if bytes.Compare(key, sstable.minKey) < 0 || bytes.Compare(key, sstable.maxKey) > 0 {
-			l.sstablesLock.RUnlock()
+			sstable.lock.RUnlock()
 			continue
 		}
 
 		// Get an iterator for the SSTable file.
 		it, err := getSSTableIterator(sstable.pager)
 		if err != nil {
-			l.sstablesLock.RUnlock()
+			sstable.lock.RUnlock()
 			return nil, err
 		}
 
@@ -471,17 +474,16 @@ func (l *LSMT) Get(key []byte) ([]byte, error) {
 			if err == io.EOF {
 				break
 			} else if err != nil {
-				l.sstablesLock.RUnlock()
+				sstable.lock.RUnlock()
 				return nil, err
 			}
-
 			if bytes.Compare(kv.Key, key) == 0 {
-				l.sstablesLock.RUnlock()
+				sstable.lock.RUnlock()
 				return kv.Value, nil
 			}
 		}
 
-		l.sstablesLock.RUnlock()
+		sstable.lock.RUnlock()
 	}
 
 	return nil, errors.New("key not found")
@@ -499,25 +501,6 @@ func (l *LSMT) Delete(key []byte) error {
 	l.memtable.Insert(key, []byte(TOMBSTONE_VALUE))
 
 	return nil
-}
-
-// binarySearch performs a binary search on the key-value pairs to find the key.
-func binarySearch(kvs []*KeyValue, key []byte) int {
-	low, high := 0, len(kvs)-1
-
-	for low <= high {
-		mid := low + (high-low)/2
-
-		if bytes.Compare(kvs[mid].Key, key) == 0 {
-			return mid
-		} else if bytes.Compare(kvs[mid].Key, key) < 0 {
-			low = mid + 1
-		} else {
-			high = mid - 1
-		}
-	}
-
-	return -1
 }
 
 // Compact compacts the LSM-tree by merging all SSTables into a single SSTable.
@@ -551,22 +534,6 @@ func (l *LSMT) Compact() error {
 			// If the value is not a tombstone, add it to the new memtable.
 			newMemtable.Insert(kv.Key, kv.Value)
 		}
-
-		//kvs, err := getSSTableKVs(sstable.file)
-		//if err != nil {
-		//	return err
-		//}
-		//
-		//// For each key-value pair, check if the value is a tombstone.
-		//for _, kv := range kvs {
-		//	if bytes.Compare(kv.Value, []byte(TOMBSTONE_VALUE)) == 0 { // If the value is a tombstone, skip this key-value pair
-		//		continue
-		//	}
-		//
-		//	// If the value is not a tombstone, add it to the new memtable.
-		//	newMemtable.Insert(kv.Key, kv.Value)
-		//
-		//}
 
 		sstable.pager.Close() // Close the SSTable pager.
 
@@ -744,11 +711,10 @@ func (l *LSMT) Range(start, end []byte) ([][]byte, [][]byte, error) {
 
 	// Search the SSTables for the range.
 	for i := len(l.sstables) - 1; i >= 0; i-- {
-		// Lock the SSTable for reading.
-		l.sstablesLock.RLock()
-		defer l.sstablesLock.RUnlock()
 
 		sstable := l.sstables[i]
+
+		sstable.lock.RLock()
 
 		// If the range is not within the range of this SSTable, skip it.
 		if bytes.Compare(start, sstable.minKey) < 0 || bytes.Compare(end, sstable.maxKey) > 0 {
@@ -758,6 +724,7 @@ func (l *LSMT) Range(start, end []byte) ([][]byte, [][]byte, error) {
 		// Get an iterator for the SSTable file.
 		it, err := getSSTableIterator(sstable.pager)
 		if err != nil {
+			sstable.lock.RUnlock()
 			return nil, nil, err
 		}
 
@@ -767,6 +734,7 @@ func (l *LSMT) Range(start, end []byte) ([][]byte, [][]byte, error) {
 			if err == io.EOF {
 				break
 			} else if err != nil {
+				sstable.lock.RUnlock()
 				return nil, nil, err
 			}
 
@@ -776,6 +744,8 @@ func (l *LSMT) Range(start, end []byte) ([][]byte, [][]byte, error) {
 			}
 
 		}
+
+		sstable.lock.RUnlock()
 	}
 
 	return keys, values, nil
@@ -804,11 +774,10 @@ func (l *LSMT) NRange(start, end []byte) ([][]byte, [][]byte, error) {
 
 	// Search the SSTables for the range.
 	for i := len(l.sstables) - 1; i >= 0; i-- {
-		// Lock the SSTable for reading.
-		l.sstablesLock.RLock()
-		defer l.sstablesLock.RUnlock()
 
 		sstable := l.sstables[i]
+
+		sstable.lock.RLock()
 
 		// If the range is not within the range of this SSTable, skip it.
 		if bytes.Compare(start, sstable.minKey) < 0 || bytes.Compare(end, sstable.maxKey) > 0 {
@@ -818,6 +787,7 @@ func (l *LSMT) NRange(start, end []byte) ([][]byte, [][]byte, error) {
 		// Get an iterator for the SSTable file.
 		it, err := getSSTableIterator(sstable.pager)
 		if err != nil {
+			sstable.lock.RUnlock()
 			return nil, nil, err
 		}
 
@@ -827,6 +797,7 @@ func (l *LSMT) NRange(start, end []byte) ([][]byte, [][]byte, error) {
 			if err == io.EOF {
 				break
 			} else if err != nil {
+				sstable.lock.RUnlock()
 				return nil, nil, err
 			}
 
@@ -836,6 +807,8 @@ func (l *LSMT) NRange(start, end []byte) ([][]byte, [][]byte, error) {
 			}
 
 		}
+
+		sstable.lock.RUnlock()
 	}
 
 	return keys, values, nil
@@ -865,15 +838,15 @@ func (l *LSMT) GreaterThan(key []byte) ([][]byte, [][]byte, error) {
 
 	// Search the SSTables for the range.
 	for i := len(l.sstables) - 1; i >= 0; i-- {
-		// Lock the SSTable for reading.
-		l.sstablesLock.RLock()
-		defer l.sstablesLock.RUnlock()
 
 		sstable := l.sstables[i]
+
+		sstable.lock.RLock()
 
 		// Get an iterator for the SSTable file.
 		it, err := getSSTableIterator(sstable.pager)
 		if err != nil {
+			sstable.lock.RUnlock()
 			return nil, nil, err
 		}
 
@@ -883,6 +856,7 @@ func (l *LSMT) GreaterThan(key []byte) ([][]byte, [][]byte, error) {
 			if err == io.EOF {
 				break
 			} else if err != nil {
+				sstable.lock.RUnlock()
 				return nil, nil, err
 			}
 
@@ -892,6 +866,8 @@ func (l *LSMT) GreaterThan(key []byte) ([][]byte, [][]byte, error) {
 			}
 
 		}
+
+		sstable.lock.RUnlock()
 	}
 
 	return keys, values, nil
@@ -920,15 +896,15 @@ func (l *LSMT) GreaterThanEqual(key []byte) ([][]byte, [][]byte, error) {
 
 	// Search the SSTables for the range.
 	for i := len(l.sstables) - 1; i >= 0; i-- {
-		// Lock the SSTable for reading.
-		l.sstablesLock.RLock()
-		defer l.sstablesLock.RUnlock()
 
 		sstable := l.sstables[i]
+
+		sstable.lock.RLock()
 
 		// Get an iterator for the SSTable file.
 		it, err := getSSTableIterator(sstable.pager)
 		if err != nil {
+			sstable.lock.RUnlock()
 			return nil, nil, err
 		}
 
@@ -938,6 +914,7 @@ func (l *LSMT) GreaterThanEqual(key []byte) ([][]byte, [][]byte, error) {
 			if err == io.EOF {
 				break
 			} else if err != nil {
+				sstable.lock.RUnlock()
 				return nil, nil, err
 			}
 
@@ -947,6 +924,7 @@ func (l *LSMT) GreaterThanEqual(key []byte) ([][]byte, [][]byte, error) {
 			}
 
 		}
+		sstable.lock.RUnlock()
 	}
 
 	return keys, values, nil
@@ -975,15 +953,15 @@ func (l *LSMT) LessThan(key []byte) ([][]byte, [][]byte, error) {
 
 	// Search the SSTables for the range.
 	for i := len(l.sstables) - 1; i >= 0; i-- {
-		// Lock the SSTable for reading.
-		l.sstablesLock.RLock()
-		defer l.sstablesLock.RUnlock()
 
 		sstable := l.sstables[i]
+
+		sstable.lock.RLock()
 
 		// Get an iterator for the SSTable file.
 		it, err := getSSTableIterator(sstable.pager)
 		if err != nil {
+			sstable.lock.RUnlock()
 			return nil, nil, err
 		}
 
@@ -993,6 +971,7 @@ func (l *LSMT) LessThan(key []byte) ([][]byte, [][]byte, error) {
 			if err == io.EOF {
 				break
 			} else if err != nil {
+				sstable.lock.RUnlock()
 				return nil, nil, err
 			}
 
@@ -1002,6 +981,8 @@ func (l *LSMT) LessThan(key []byte) ([][]byte, [][]byte, error) {
 			}
 
 		}
+
+		sstable.lock.RUnlock()
 	}
 
 	return keys, values, nil
@@ -1030,11 +1011,10 @@ func (l *LSMT) LessThanEqual(key []byte) ([][]byte, [][]byte, error) {
 
 	// Search the SSTables for the range.
 	for i := len(l.sstables) - 1; i >= 0; i-- {
-		// Lock the SSTable for reading.
-		l.sstablesLock.RLock()
-		defer l.sstablesLock.RUnlock()
 
 		sstable := l.sstables[i]
+
+		sstable.lock.RLock()
 
 		// Get an iterator for the SSTable file.
 		it, err := getSSTableIterator(sstable.pager)
@@ -1048,6 +1028,7 @@ func (l *LSMT) LessThanEqual(key []byte) ([][]byte, [][]byte, error) {
 			if err == io.EOF {
 				break
 			} else if err != nil {
+				sstable.lock.RUnlock()
 				return nil, nil, err
 			}
 
@@ -1057,6 +1038,8 @@ func (l *LSMT) LessThanEqual(key []byte) ([][]byte, [][]byte, error) {
 			}
 
 		}
+
+		sstable.lock.RUnlock()
 	}
 
 	return keys, values, nil
@@ -1085,15 +1068,15 @@ func (l *LSMT) NGet(key []byte) ([][]byte, [][]byte, error) {
 
 	// Search the SSTables for the range.
 	for i := len(l.sstables) - 1; i >= 0; i-- {
-		// Lock the SSTable for reading.
-		l.sstablesLock.RLock()
-		defer l.sstablesLock.RUnlock()
 
 		sstable := l.sstables[i]
+
+		sstable.lock.RLock()
 
 		// Get an iterator for the SSTable file.
 		it, err := getSSTableIterator(sstable.pager)
 		if err != nil {
+			sstable.lock.RUnlock()
 			return nil, nil, err
 		}
 
@@ -1103,6 +1086,7 @@ func (l *LSMT) NGet(key []byte) ([][]byte, [][]byte, error) {
 			if err == io.EOF {
 				break
 			} else if err != nil {
+				sstable.lock.RUnlock()
 				return nil, nil, err
 			}
 
@@ -1111,6 +1095,8 @@ func (l *LSMT) NGet(key []byte) ([][]byte, [][]byte, error) {
 				values = append(values, kv.Value)
 			}
 		}
+
+		sstable.lock.RUnlock()
 	}
 
 	return keys, values, nil

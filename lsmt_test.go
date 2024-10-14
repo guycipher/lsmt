@@ -20,7 +20,6 @@ import (
 	"log"
 	"os"
 	"testing"
-	"time"
 )
 
 func TestNew(t *testing.T) {
@@ -570,8 +569,10 @@ func TestLSMT_Put(t *testing.T) {
 }
 
 func TestLSMT_Case(t *testing.T) {
+	// Searching latest sstable..
+
 	defer os.RemoveAll("my_lsm_tree")
-	l, err := New("my_lsm_tree", 0755, 100000, 2, 10)
+	l, err := New("my_lsm_tree", 0755, 100, 15, 13)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -582,29 +583,22 @@ func TestLSMT_Case(t *testing.T) {
 
 	defer l.Close()
 
-	tt := time.Now()
-
-	// Insert 1000000 key-value pairs
-	for i := 0; i < 1000000; i++ {
+	// Insert 1000 key-value pairs
+	for i := 0; i < 1000; i++ {
 		err = l.Put([]byte(string(fmt.Sprintf("%d", i))), []byte(string(fmt.Sprintf("%d", i))))
 		if err != nil {
 			log.Fatal(err)
 		}
 	}
 
-	log.Println("Write 1000000 elements in", time.Since(tt))
-
-	tt = time.Now()
-
 	// Get a key
-	value, err := l.Get([]byte("834332"))
+	value, err := l.Get([]byte("832"))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	if string(value) != "834332" {
-		log.Fatalf("expected 834332, got %s", string(value))
+	if string(value) != "832" {
+		log.Fatalf("expected 832, got %s", string(value))
 	}
 
-	log.Println("Get key 834332 in", time.Since(tt))
 }

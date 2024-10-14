@@ -473,12 +473,26 @@ func (p *Pager) Analyze() error {
 	return nil
 }
 
+// Size returns the size of the file
+func (p *Pager) Size() int64 {
+	if p == nil {
+		return 0
+	}
+
+	stat, _ := p.file.Stat()
+	return stat.Size()
+}
+
+// PagesCount  returns the number of pages
+func (p *Pager) PagesCount() int64 {
+	return p.Size() / (PAGE_SIZE + HEADER_SIZE)
+}
+
 // Count returns the number of pages
 func (p *Pager) Count() int64 {
 
 	if p == nil {
 		return 0
-
 	}
 
 	if p.cachedCount == 0 {
