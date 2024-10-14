@@ -634,7 +634,7 @@ func TestLSMT_Transaction(t *testing.T) {
 	}
 }
 
-func TestLSMT_Wal(t *testing.T) {
+func TestLSMT_WalAndRecovery(t *testing.T) {
 	defer os.RemoveAll("test_lsm_tree")
 	lsmt, err := New("test_lsm_tree", 0755, 128, 2, 1)
 	if err != nil {
