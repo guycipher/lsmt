@@ -59,6 +59,7 @@ func TestLMST_Put(t *testing.T) {
 
 	// Insert 268 key-value pairs
 	for i := 0; i < 268; i++ {
+		log.Println(i)
 		err = lsmt.Put([]byte(string(fmt.Sprintf("%d", i))), []byte(string(fmt.Sprintf("%d", i))))
 		if err != nil {
 			t.Fatal(err)

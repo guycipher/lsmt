@@ -48,6 +48,7 @@ type LSMT struct {
 	wal                *Wal
 	isFlushing         atomic.Int32
 	isCompacting       atomic.Int32
+	cond               *sync.Cond
 }
 
 // Wal is a struct representing a write-ahead log.
@@ -122,6 +123,7 @@ func New(directory string, directoryPerm os.FileMode, memtableFlushSize, compact
 			compactionInterval: compactionInterval,
 			minimumSSTables:    minimumSSTables,
 			wal:                &Wal{lock: &sync.RWMutex{}, pager: walPager},
+			cond:               sync.NewCond(&sync.Mutex{}),
 		}, nil
 	} else {
 
@@ -175,6 +177,7 @@ func New(directory string, directoryPerm os.FileMode, memtableFlushSize, compact
 			compactionInterval: compactionInterval,
 			minimumSSTables:    minimumSSTables,
 			wal:                &Wal{lock: &sync.RWMutex{}, pager: walPager},
+			cond:               sync.NewCond(&sync.Mutex{}),
 		}, nil
 
 	}
@@ -297,9 +300,11 @@ func (l *LSMT) Put(key, value []byte) error {
 	// If the memtable size exceeds the flush size, we will flush the memtable to disk.
 
 	// Check if we are flushing or compacting
+	l.cond.L.Lock()
 	for l.isFlushing.Load() == 1 || l.isCompacting.Load() == 1 {
-		time.Sleep(10 * time.Nanosecond)
+		l.cond.Wait()
 	}
+	l.cond.L.Unlock()
 
 	// Lock memtable for writing.
 	l.memtableLock.Lock()
@@ -349,17 +354,12 @@ func (l *LSMT) flushMemtable() error {
 	// We will create a new SSTable from the memtable and add it to the list of SSTables.
 	// We will then clear the memtable.
 
-	if l.isFlushing.Load() == 1 || l.isCompacting.Load() == 1 {
-		for l.isFlushing.Load() == 1 || l.isCompacting.Load() == 1 {
-			time.Sleep(10 * time.Nanosecond)
-		}
-	}
-
 	l.isFlushing.Store(1)
 
 	// Create a new SSTable from the memtable.
 	sstable, err := l.newSSTable(l.directory, l.memtable)
 	if err != nil {
+		l.isFlushing.Store(0)
 		return err
 	}
 
@@ -377,12 +377,16 @@ func (l *LSMT) flushMemtable() error {
 	// Check the amount of sstables and if we need to compact
 	if len(l.sstables) > l.compactionInterval {
 		if err := l.Compact(); err != nil {
+			l.isFlushing.Store(0)
 			return err
 		}
 
 	}
 
 	l.isFlushing.Store(0)
+
+	// Signal the condition variable
+	l.cond.Broadcast()
 
 	return nil
 }
@@ -558,11 +562,6 @@ func (l *LSMT) Delete(key []byte) error {
 
 // Compact compacts the LSM-tree by merging all SSTables into a single SSTable.
 func (l *LSMT) Compact() error {
-	if l.isCompacting.Load() == 1 || l.isFlushing.Load() == 1 {
-		for l.isCompacting.Load() == 1 || l.isFlushing.Load() == 1 {
-			time.Sleep(10 * time.Nanosecond)
-		}
-	}
 
 	l.isCompacting.Store(1)
 
@@ -645,7 +644,10 @@ func (l *LSMT) Compact() error {
 		return err
 	}
 
-	l.isCompacting.Store(0)
+	l.isFlushing.Store(0)
+
+	// Signal the condition variable
+	l.cond.Broadcast()
 
 	return nil
 }
