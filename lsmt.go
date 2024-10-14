@@ -49,19 +49,16 @@ type LSMT struct {
 
 // Wal is a struct representing a write-ahead log.
 type Wal struct {
-	file    *os.File
-	encoder *gob.Encoder
-	decoder *gob.Decoder
-	lock    *sync.RWMutex
+	pager *Pager        // The pager for the write-ahead log.
+	lock  *sync.RWMutex // Lock for the write-ahead log.
 }
 
 // SSTable is a struct representing a sorted string table.
 type SSTable struct {
-	file    *os.File      // The opened SSTable file.
-	encoder *gob.Encoder  // The encoder for the SSTable file.
-	minKey  []byte        // The minimum key in the SSTable.
-	maxKey  []byte        // The maximum key in the SSTable.
-	lock    *sync.RWMutex // Lock for the SSTable.
+	pager  *Pager        // The pager for the SSTable.
+	minKey []byte        // The minimum key in the SSTable.
+	maxKey []byte        // The maximum key in the SSTable.
+	lock   *sync.RWMutex // Lock for the SSTable.
 }
 
 // OperationType is an enum representing the type of operation.
@@ -87,8 +84,8 @@ type Transaction struct {
 
 // SSTableIterator is an iterator for SSTable.
 type SSTableIterator struct {
-	file *os.File
-	dec  *gob.Decoder
+	pager       *Pager
+	currentPage int64
 }
 
 // New creates a new LSM-tree or opens an existing one.
@@ -106,7 +103,7 @@ func New(directory string, directoryPerm os.FileMode, memtableFlushSize, compact
 		}
 
 		// Create the write-ahead log
-		walFile, err := os.OpenFile(fmt.Sprintf("%s%s%s", directory, string(os.PathSeparator), "wal"+WAL_EXTENSION), os.O_CREATE|os.O_RDWR, 0644)
+		walPager, err := OpenPager(directory+string(os.PathSeparator)+WAL_EXTENSION, os.O_CREATE|os.O_RDWR, 0644)
 		if err != nil {
 			return nil, err
 		}
@@ -120,7 +117,7 @@ func New(directory string, directoryPerm os.FileMode, memtableFlushSize, compact
 			memtableFlushSize:  memtableFlushSize,
 			compactionInterval: compactionInterval,
 			minimumSSTables:    minimumSSTables,
-			wal:                &Wal{file: walFile, encoder: gob.NewEncoder(walFile), decoder: gob.NewDecoder(walFile), lock: &sync.RWMutex{}},
+			wal:                &Wal{lock: &sync.RWMutex{}, pager: walPager},
 		}, nil
 	} else {
 
@@ -142,17 +139,17 @@ func New(directory string, directoryPerm os.FileMode, memtableFlushSize, compact
 			}
 
 			// Open the SSTable file
-			sstableFile, err := os.OpenFile(directory+string(os.PathSeparator)+file.Name(), os.O_RDWR, 0644)
+			sstablePager, err := OpenPager(fmt.Sprintf("%s%s%s", directory, string(os.PathSeparator), file.Name()), os.O_RDWR, 0644)
 			if err != nil {
 				return nil, err
 			}
 
 			// Create a new SSTable
 			sstable := &SSTable{
-				file:   sstableFile,
 				minKey: nil,
 				maxKey: nil,
 				lock:   &sync.RWMutex{},
+				pager:  sstablePager,
 			}
 
 			// Add the SSTable to the list of SSTables
@@ -176,12 +173,40 @@ func New(directory string, directoryPerm os.FileMode, memtableFlushSize, compact
 
 }
 
+// encodeOperation encodes an operation.
+func encodeOperation(op Operation) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
+	err := enc.Encode(op)
+	if err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+
+}
+
+// decodeOperation decodes an operation.
+func decodeOperation(data []byte) (Operation, error) {
+	var op Operation
+	dec := gob.NewDecoder(bytes.NewReader(data))
+	err := dec.Decode(&op)
+	if err != nil {
+		return op, err
+	}
+	return op, nil
+}
+
 // WriteOperation writes an operation to the write-ahead log.
 func (wal *Wal) WriteOperation(op Operation) error {
 	wal.lock.Lock()
 	defer wal.lock.Unlock()
 
-	err := wal.encoder.Encode(op)
+	encoded, err := encodeOperation(op)
+	if err != nil {
+		return err
+	}
+
+	_, err = wal.pager.Write(encoded)
 	if err != nil {
 		return err
 	}
@@ -196,12 +221,15 @@ func (wal *Wal) Recover() ([]Operation, error) {
 
 	var operations []Operation
 
-	for {
-		var op Operation
-		err := wal.decoder.Decode(&op)
-		if err == io.EOF {
-			break
-		} else if err != nil {
+	pageCount := wal.pager.Count()
+	for i := int64(0); i < pageCount; i++ {
+		data, err := wal.pager.GetPage(i)
+		if err != nil {
+			return nil, err
+		}
+
+		op, err := decodeOperation(data)
+		if err != nil {
 			return nil, err
 		}
 
@@ -231,14 +259,27 @@ func (l *LSMT) RunRecoveredOperations(operations []Operation) error {
 	return nil
 }
 
+func (it *SSTableIterator) Ok() bool {
+	return it.currentPage < it.pager.Count()
+}
+
 // Next returns the next key-value pair from the SSTable.
 func (it *SSTableIterator) Next() (*KeyValue, error) {
-	var kv KeyValue
-	err := it.dec.Decode(&kv)
+	// Read the next key-value pair from the SSTable.
+	data, err := it.pager.GetPage(it.currentPage)
 	if err != nil {
 		return nil, err
 	}
-	return &kv, nil
+
+	kv, err := decodeKv(data)
+	if err != nil {
+		return nil, err
+	}
+
+	it.currentPage++
+
+	return kv, nil
+
 }
 
 // Put inserts a key-value pair into the LSM-tree.
@@ -271,14 +312,9 @@ func (l *LSMT) Put(key, value []byte) error {
 }
 
 // getSSTableIterator returns an iterator for the SSTable.
-func getSSTableIterator(file *os.File) (*SSTableIterator, error) {
-	_, err := file.Seek(0, 0)
-	if err != nil {
-		return nil, err
-	}
+func getSSTableIterator(pager *Pager) (*SSTableIterator, error) {
 	return &SSTableIterator{
-		file: file,
-		dec:  gob.NewDecoder(file),
+		pager: pager,
 	}, nil
 }
 
@@ -340,27 +376,51 @@ func (l *LSMT) newSSTable(directory string, memtable *avl.AVLTree) (*SSTable, er
 	fileName := fmt.Sprintf("%s%s%d%s", directory, string(os.PathSeparator), len(l.sstables), SSTABLE_EXTENSION)
 
 	// Create a new SSTable file.
-	ssltableFile, err := os.OpenFile(fileName, os.O_CREATE|os.O_RDWR, 0644)
+	ssltablePager, err := OpenPager(fileName, os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {
 		return nil, err
 	}
 
-	enc := gob.NewEncoder(ssltableFile)
-
 	for _, kv := range sstableSlice {
-		err = enc.Encode(kv)
+		encoded, err := encodeKv(kv)
+		if err != nil {
+			return nil, err
+		}
+
+		_, err = ssltablePager.Write(encoded)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	return &SSTable{
-		file:    ssltableFile,
-		minKey:  sstableSlice[0].Key,
-		maxKey:  sstableSlice[len(sstableSlice)-1].Key,
-		lock:    &sync.RWMutex{},
-		encoder: enc,
+		minKey: sstableSlice[0].Key,
+		maxKey: sstableSlice[len(sstableSlice)-1].Key,
+		lock:   &sync.RWMutex{},
 	}, nil
+}
+
+// encodeKv
+func encodeKv(kv *KeyValue) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
+	err := enc.Encode(kv)
+	if err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+// decodeKv
+func decodeKv(data []byte) (*KeyValue, error) {
+	var kv *KeyValue
+	dec := gob.NewDecoder(bytes.NewReader(data))
+	err := dec.Decode(kv)
+	if err != nil {
+		return kv, err
+	}
+	return kv, nil
+
 }
 
 // Get retrieves the value for a given key from the LSM-tree.
@@ -398,13 +458,13 @@ func (l *LSMT) Get(key []byte) ([]byte, error) {
 		}
 
 		// Get an iterator for the SSTable file.
-		it, err := getSSTableIterator(sstable.file)
+		it, err := getSSTableIterator(sstable.pager)
 		if err != nil {
 			return nil, err
 		}
 
 		// Iterate over the SSTable.
-		for {
+		for it.Ok() {
 			kv, err := it.Next()
 			if err == io.EOF {
 				break
@@ -464,13 +524,13 @@ func (l *LSMT) Compact() error {
 		// Read all key-value pairs from the SSTable.
 
 		// Get an iterator for the SSTable file.
-		it, err := getSSTableIterator(sstable.file)
+		it, err := getSSTableIterator(sstable.pager)
 		if err != nil {
 			return err
 		}
 
 		// Iterate over the SSTable.
-		for {
+		for it.Ok() {
 			kv, err := it.Next()
 			if err == io.EOF {
 				break
@@ -502,7 +562,7 @@ func (l *LSMT) Compact() error {
 		//
 		//}
 
-		sstable.file.Close() // Close the SSTable file.
+		sstable.pager.Close() // Close the SSTable pager.
 
 	}
 
@@ -523,6 +583,11 @@ func (l *LSMT) Compact() error {
 		}
 
 		err = os.Remove(fmt.Sprintf("%s%s%s", l.directory, string(os.PathSeparator), file.Name()))
+		if err != nil {
+			return err
+		}
+
+		err = os.Remove(fmt.Sprintf("%s%s%s", l.directory, string(os.PathSeparator), file.Name()+".del"))
 		if err != nil {
 			return err
 		}
@@ -561,10 +626,10 @@ func (l *LSMT) Close() error {
 	}
 
 	if len(l.sstables) > 0 {
-		// Close all SSTable files.
+		// Close all SSTable pagers.
 		for _, sstable := range l.sstables {
-			if sstable.file != nil {
-				if err := sstable.file.Close(); err != nil {
+			if sstable.pager != nil {
+				if err := sstable.pager.Close(); err != nil {
 					return err
 				}
 			}
@@ -586,14 +651,19 @@ func (l *LSMT) SplitSSTable(sstable *SSTable, n int) ([]*SSTable, error) {
 
 	memtSeq := 0
 
+	if sstable == nil {
+		return nil, nil
+
+	}
+
 	// Get an iterator for the SSTable file.
-	it, err := getSSTableIterator(sstable.file)
+	it, err := getSSTableIterator(sstable.pager)
 	if err != nil {
 		return nil, err
 	}
 
 	// Iterate over the SSTable.
-	for {
+	for it.Ok() {
 		kv, err := it.Next()
 		if err == io.EOF {
 			break
@@ -618,11 +688,11 @@ func (l *LSMT) SplitSSTable(sstable *SSTable, n int) ([]*SSTable, error) {
 
 	}
 
-	// Close the SSTable file.
-	sstable.file.Close()
+	// Close the SSTable pager.
+	sstable.pager.Close()
 
 	// delete the sstable file
-	err = os.Remove(sstable.file.Name())
+	err = os.Remove(sstable.pager.file.Name())
 	if err != nil {
 		return nil, err
 	}
@@ -680,13 +750,13 @@ func (l *LSMT) Range(start, end []byte) ([][]byte, [][]byte, error) {
 		}
 
 		// Get an iterator for the SSTable file.
-		it, err := getSSTableIterator(sstable.file)
+		it, err := getSSTableIterator(sstable.pager)
 		if err != nil {
 			return nil, nil, err
 		}
 
 		// Iterate over the SSTable.
-		for {
+		for it.Ok() {
 			kv, err := it.Next()
 			if err == io.EOF {
 				break
@@ -740,13 +810,13 @@ func (l *LSMT) NRange(start, end []byte) ([][]byte, [][]byte, error) {
 		}
 
 		// Get an iterator for the SSTable file.
-		it, err := getSSTableIterator(sstable.file)
+		it, err := getSSTableIterator(sstable.pager)
 		if err != nil {
 			return nil, nil, err
 		}
 
 		// Iterate over the SSTable.
-		for {
+		for it.Ok() {
 			kv, err := it.Next()
 			if err == io.EOF {
 				break
@@ -796,13 +866,13 @@ func (l *LSMT) GreaterThan(key []byte) ([][]byte, [][]byte, error) {
 		sstable := l.sstables[i]
 
 		// Get an iterator for the SSTable file.
-		it, err := getSSTableIterator(sstable.file)
+		it, err := getSSTableIterator(sstable.pager)
 		if err != nil {
 			return nil, nil, err
 		}
 
 		// Iterate over the SSTable.
-		for {
+		for it.Ok() {
 			kv, err := it.Next()
 			if err == io.EOF {
 				break
@@ -851,13 +921,13 @@ func (l *LSMT) GreaterThanEqual(key []byte) ([][]byte, [][]byte, error) {
 		sstable := l.sstables[i]
 
 		// Get an iterator for the SSTable file.
-		it, err := getSSTableIterator(sstable.file)
+		it, err := getSSTableIterator(sstable.pager)
 		if err != nil {
 			return nil, nil, err
 		}
 
 		// Iterate over the SSTable.
-		for {
+		for it.Ok() {
 			kv, err := it.Next()
 			if err == io.EOF {
 				break
@@ -906,13 +976,13 @@ func (l *LSMT) LessThan(key []byte) ([][]byte, [][]byte, error) {
 		sstable := l.sstables[i]
 
 		// Get an iterator for the SSTable file.
-		it, err := getSSTableIterator(sstable.file)
+		it, err := getSSTableIterator(sstable.pager)
 		if err != nil {
 			return nil, nil, err
 		}
 
 		// Iterate over the SSTable.
-		for {
+		for it.Ok() {
 			kv, err := it.Next()
 			if err == io.EOF {
 				break
@@ -961,13 +1031,13 @@ func (l *LSMT) LessThanEqual(key []byte) ([][]byte, [][]byte, error) {
 		sstable := l.sstables[i]
 
 		// Get an iterator for the SSTable file.
-		it, err := getSSTableIterator(sstable.file)
+		it, err := getSSTableIterator(sstable.pager)
 		if err != nil {
 			return nil, nil, err
 		}
 
 		// Iterate over the SSTable.
-		for {
+		for it.Ok() {
 			kv, err := it.Next()
 			if err == io.EOF {
 				break
@@ -1016,13 +1086,13 @@ func (l *LSMT) NGet(key []byte) ([][]byte, [][]byte, error) {
 		sstable := l.sstables[i]
 
 		// Get an iterator for the SSTable file.
-		it, err := getSSTableIterator(sstable.file)
+		it, err := getSSTableIterator(sstable.pager)
 		if err != nil {
 			return nil, nil, err
 		}
 
 		// Iterate over the SSTable.
-		for {
+		for it.Ok() {
 			kv, err := it.Next()
 			if err == io.EOF {
 				break

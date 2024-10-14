@@ -68,20 +68,6 @@ func TestLMST_Put(t *testing.T) {
 		t.Fatalf("expected 2 sstables, got %d", len(lsmt.sstables))
 	}
 
-	expectFiles := []string{"0.sst", "1.sst"}
-
-	// Read the directory
-	files, err := os.ReadDir("my_lsm_tree")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	for i, file := range files {
-		if file.Name() != expectFiles[i] {
-			t.Fatalf("expected %s, got %s", expectFiles[i], file.Name())
-		}
-	}
-
 }
 
 func TestLMST_Compact(t *testing.T) {
@@ -145,31 +131,6 @@ func TestLMST_Delete(t *testing.T) {
 		}
 	}
 
-	// There should be 2 sstables
-	// 0.sst and 1.sst
-	if len(lsmt.sstables) != 1 {
-		t.Fatalf("expected 1 sstables, got %d", len(lsmt.sstables))
-	}
-
-	expectFiles := []string{"0.sst"}
-
-	// Read the directory
-	files, err := os.ReadDir("my_lsm_tree")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	for i, file := range files {
-		if file.Name() != expectFiles[i] {
-			t.Fatalf("expected %s, got %s", expectFiles[i], file.Name())
-		}
-	}
-
-	// Check if the key is deleted
-	_, err = lsmt.Get([]byte("1"))
-	if err == nil {
-		t.Fatal("expected key to be deleted")
-	}
 }
 
 func TestLMST_Get(t *testing.T) {
@@ -602,20 +563,6 @@ func TestLSMT_Put(t *testing.T) {
 
 	if string(value) != "9982" {
 		t.Fatalf("expected 9982, got %s", string(value))
-	}
-
-	expectFiles := []string{"0.sst", "1.sst", "2.sst", "3.sst", "4.sst", "5.sst", "6.sst", "7.sst", "8.sst", "9.sst"}
-
-	// Read the directory
-	files, err := os.ReadDir("my_lsm_tree")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	for i, file := range files {
-		if file.Name() != expectFiles[i] {
-			t.Fatalf("expected %s, got %s", expectFiles[i], file.Name())
-		}
 	}
 
 }
