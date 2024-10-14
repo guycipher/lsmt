@@ -6,9 +6,11 @@ It features a memory-based AVL tree (memtable) that temporarily holds key-value 
 Compaction is triggered when the number of SSTables reaches a certain threshold, and the SSTables are merged to reduce the number of files and improve read performance.
 
 ## Benchmarking
-11th Gen Intel(R) Core(TM) i7-11700K @ 3.60GHz UBuntu with WDC WDS500G2B0A-00SM50(HDD) we put 1 MILLION keys in `523ms` 523 milliseconds
+### v1.4.0 Benchmark
+11th Gen Intel(R) Core(TM) i7-11700K @ 3.60GHz UBuntu with WDC WDS500G2B0A-00SM50(HDD)
+we put 1 MILLION keys in `11.84974657s`
+That is roughly *84,400 operations per second.*
 
-That is roughly *1,912,577 operations per second.*
 
 <div>
     <h1 align="center"><img width="328" src="drawing.png"></h1>
