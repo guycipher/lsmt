@@ -8,8 +8,10 @@ Compaction is triggered when the number of SSTables reaches a certain threshold,
 ## Benchmarking
 ### v1.4.0 Benchmark
 11th Gen Intel(R) Core(TM) i7-11700K @ 3.60GHz UBuntu with WDC WDS500G2B0A-00SM50(HDD)
-we put 1 MILLION keys in `11.84974657s`
-That is roughly *84,400 operations per second.*
+
+We put 1 MILLION keys in `11.84974657s`
+
+That is roughly **84,400 operations per second.**
 
 
 <div>
