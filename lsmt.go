@@ -1168,3 +1168,8 @@ func (l *LSMT) RollbackTransaction(tx *Transaction) {
 		}
 	}
 }
+
+// GetWal returns the write-ahead log.
+func (l *LSMT) GetWal() *Wal {
+	return l.wal
+}
