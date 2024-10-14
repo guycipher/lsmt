@@ -45,10 +45,10 @@ type LSMT struct {
 	compactionInterval int            // The interval at which the LSM-tree should be compacted. (in number of SSTables)
 	minimumSSTables    int            // The minimum number of SSTables to keep.  On compaction, we will always keep this number of SSTables instead of one large SSTable.
 	activeTransactions []*Transaction // List of active transactions
-	wal                *Wal
-	isFlushing         atomic.Int32
-	isCompacting       atomic.Int32
-	cond               *sync.Cond
+	wal                *Wal           // write-ahead log
+	isFlushing         atomic.Int32   // Whether the LSM-tree is flushing
+	isCompacting       atomic.Int32   // Whether the LSM-tree is compacting
+	cond               *sync.Cond     // Condition variable for signaling when the LSM-tree is flushing or compacting
 }
 
 // Wal is a struct representing a write-ahead log.
