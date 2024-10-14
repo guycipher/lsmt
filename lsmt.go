@@ -122,7 +122,12 @@ func New(directory string, directoryPerm os.FileMode, memtableFlushSize, compact
 		}, nil
 	} else {
 
-		// We create the directory and populate it with the SSTables
+		// Open the write-ahead log
+		walPager, err := OpenPager(directory+string(os.PathSeparator)+WAL_EXTENSION, os.O_RDWR, 0644)
+		if err != nil {
+			return nil, err
+		}
+
 		files, err := os.ReadDir(directory)
 		if err != nil {
 			return nil, err
@@ -155,22 +160,21 @@ func New(directory string, directoryPerm os.FileMode, memtableFlushSize, compact
 
 			// Add the SSTable to the list of SSTables
 			sstables = append(sstables, sstable)
-
-			return &LSMT{
-				memtable:           avl.NewAVLTree(),
-				memtableLock:       &sync.RWMutex{},
-				sstables:           sstables,
-				sstablesLock:       &sync.RWMutex{},
-				directory:          directory,
-				memtableFlushSize:  memtableFlushSize,
-				compactionInterval: compactionInterval,
-				minimumSSTables:    minimumSSTables,
-			}, nil
 		}
 
-	}
+		return &LSMT{
+			memtable:           avl.NewAVLTree(),
+			memtableLock:       &sync.RWMutex{},
+			sstables:           sstables,
+			sstablesLock:       &sync.RWMutex{},
+			directory:          directory,
+			memtableFlushSize:  memtableFlushSize,
+			compactionInterval: compactionInterval,
+			minimumSSTables:    minimumSSTables,
+			wal:                &Wal{lock: &sync.RWMutex{}, pager: walPager},
+		}, nil
 
-	return nil, errors.New("directory is not a directory")
+	}
 
 }
 
@@ -290,10 +294,10 @@ func (l *LSMT) Put(key, value []byte) error {
 
 	// Append the operation to the write-ahead log.
 	err := l.wal.WriteOperation(Operation{
-		Type: OpPut,
-		Key:  key,
+		Type:  OpPut,
+		Key:   key,
+		Value: value,
 	})
-
 	if err != nil {
 		return err
 	}

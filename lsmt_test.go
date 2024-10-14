@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -661,15 +662,33 @@ func TestLSMT_Wal(t *testing.T) {
 	lsmt.Close()
 
 	// delete the sstables
-	os.RemoveAll("test_lsm_tree")
+	dirFiles, err := os.ReadDir("test_lsm_tree")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, dirFile := range dirFiles {
+		if dirFile.IsDir() {
+			continue
+		}
+		if strings.HasSuffix(dirFile.Name(), ".sst") {
+			err = os.Remove("test_lsm_tree/" + dirFile.Name())
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+
+	}
 
 	lsmt, err = New("test_lsm_tree", 0755, 128, 2, 1)
 	if err != nil {
+		log.Println("here?")
 		t.Fatal(err)
 	}
 
 	operations, err := lsmt.GetWal().Recover()
 	if err != nil {
+		t.Fatal(err)
 		return
 	}
 
