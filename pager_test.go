@@ -26,9 +26,9 @@ import (
 )
 
 func TestOpenPager(t *testing.T) {
-	defer os.Remove("btree.db")
-	defer os.Remove("btree.db.del")
-	pager, err := OpenPager("btree.db", os.O_CREATE|os.O_RDWR, 0644)
+	defer os.Remove("pager.db")
+	defer os.Remove("pager.db.del")
+	pager, err := OpenPager("pager.db", os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,10 +42,10 @@ func TestOpenPager(t *testing.T) {
 }
 
 func TestPager_Write(t *testing.T) {
-	defer os.Remove("btree.db")
-	defer os.Remove("btree.db.del")
+	defer os.Remove("pager.db")
+	defer os.Remove("pager.db.del")
 
-	pager, err := OpenPager("btree.db", os.O_CREATE|os.O_RDWR, 0644)
+	pager, err := OpenPager("pager.db", os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,10 +74,10 @@ func TestPager_Write(t *testing.T) {
 }
 
 func TestPager_Write2(t *testing.T) {
-	defer os.Remove("btree.db")
-	defer os.Remove("btree.db.del")
+	defer os.Remove("pager.db")
+	defer os.Remove("pager.db.del")
 
-	pager, err := OpenPager("btree.db", os.O_CREATE|os.O_RDWR, 0644)
+	pager, err := OpenPager("pager.db", os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -92,10 +92,10 @@ func TestPager_Write2(t *testing.T) {
 }
 
 func TestPager_Count(t *testing.T) {
-	defer os.Remove("btree.db")
-	defer os.Remove("btree.db.del")
+	defer os.Remove("pager.db")
+	defer os.Remove("pager.db.del")
 
-	pager, err := OpenPager("btree.db", os.O_CREATE|os.O_RDWR, 0644)
+	pager, err := OpenPager("pager.db", os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {
 		t.Fatal(err)
 	}
