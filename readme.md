@@ -31,7 +31,7 @@ That is roughly *1,912,577 operations per second.*
 ### Usage
 Importing
 ```
-pkg.go.dev/github.com/guycipher/lsmt
+github.com/guycipher/lsmt
 ```
 
 ```go
