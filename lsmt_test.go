@@ -23,8 +23,8 @@ import (
 )
 
 func TestNew(t *testing.T) {
-	defer os.RemoveAll("my_lsm_tree")
-	lsmt, err := New("my_lsm_tree", 0755, 128, 2, 1)
+	defer os.RemoveAll("test_lsm_tree")
+	lsmt, err := New("test_lsm_tree", 0755, 128, 2, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -36,15 +36,15 @@ func TestNew(t *testing.T) {
 	defer lsmt.Close()
 
 	// Check if the directory exists
-	if _, err := os.Stat("my_lsm_tree"); os.IsNotExist(err) {
+	if _, err := os.Stat("test_lsm_tree"); os.IsNotExist(err) {
 		t.Fatal(err)
 	}
 
 }
 
 func TestLMST_Put(t *testing.T) {
-	defer os.RemoveAll("my_lsm_tree")
-	lsmt, err := New("my_lsm_tree", 0755, 128, 2, 1)
+	defer os.RemoveAll("test_lsm_tree")
+	lsmt, err := New("test_lsm_tree", 0755, 128, 2, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -72,8 +72,8 @@ func TestLMST_Put(t *testing.T) {
 }
 
 func TestLMST_Compact(t *testing.T) {
-	defer os.RemoveAll("my_lsm_tree")
-	lsmt, err := New("my_lsm_tree", 0755, 128, 3, 1)
+	defer os.RemoveAll("test_lsm_tree")
+	lsmt, err := New("test_lsm_tree", 0755, 128, 3, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -97,15 +97,15 @@ func TestLMST_Compact(t *testing.T) {
 	}
 
 	// Check for 0.sst
-	if _, err := os.Stat("my_lsm_tree/0.sst"); os.IsNotExist(err) {
+	if _, err := os.Stat("test_lsm_tree/0.sst"); os.IsNotExist(err) {
 		t.Fatal(err)
 	}
 
 }
 
 func TestLMST_Delete(t *testing.T) {
-	defer os.RemoveAll("my_lsm_tree")
-	lsmt, err := New("my_lsm_tree", 0755, 128, 2, 1)
+	defer os.RemoveAll("test_lsm_tree")
+	lsmt, err := New("test_lsm_tree", 0755, 128, 2, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -135,8 +135,8 @@ func TestLMST_Delete(t *testing.T) {
 }
 
 func TestLMST_Get(t *testing.T) {
-	defer os.RemoveAll("my_lsm_tree")
-	lsmt, err := New("my_lsm_tree", 0755, 15_000, 2, 1)
+	defer os.RemoveAll("test_lsm_tree")
+	lsmt, err := New("test_lsm_tree", 0755, 15_000, 2, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -167,8 +167,8 @@ func TestLMST_Get(t *testing.T) {
 }
 
 func TestLSMT_NGet(t *testing.T) {
-	defer os.RemoveAll("my_lsm_tree")
-	lsmt, err := New("my_lsm_tree", 0755, 128, 2, 1)
+	defer os.RemoveAll("test_lsm_tree")
+	lsmt, err := New("test_lsm_tree", 0755, 128, 2, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -223,8 +223,8 @@ func TestLSMT_NGet(t *testing.T) {
 }
 
 func TestLSMT_Range(t *testing.T) {
-	defer os.RemoveAll("my_lsm_tree")
-	lsmt, err := New("my_lsm_tree", 0755, 128, 2, 1)
+	defer os.RemoveAll("test_lsm_tree")
+	lsmt, err := New("test_lsm_tree", 0755, 128, 2, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -273,8 +273,8 @@ func TestLSMT_Range(t *testing.T) {
 }
 
 func TestLSMT_NRange(t *testing.T) {
-	defer os.RemoveAll("my_lsm_tree")
-	lsmt, err := New("my_lsm_tree", 0755, 128, 2, 1)
+	defer os.RemoveAll("test_lsm_tree")
+	lsmt, err := New("test_lsm_tree", 0755, 128, 2, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -326,8 +326,8 @@ func TestLSMT_NRange(t *testing.T) {
 }
 
 func TestLSMT_GreaterThan(t *testing.T) {
-	defer os.RemoveAll("my_lsm_tree")
-	lsmt, err := New("my_lsm_tree", 0755, 128, 2, 1)
+	defer os.RemoveAll("test_lsm_tree")
+	lsmt, err := New("test_lsm_tree", 0755, 128, 2, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -377,8 +377,8 @@ func TestLSMT_GreaterThan(t *testing.T) {
 }
 
 func TestLSMT_LessThan(t *testing.T) {
-	defer os.RemoveAll("my_lsm_tree")
-	lsmt, err := New("my_lsm_tree", 0755, 128, 2, 1)
+	defer os.RemoveAll("test_lsm_tree")
+	lsmt, err := New("test_lsm_tree", 0755, 128, 2, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -427,8 +427,8 @@ func TestLSMT_LessThan(t *testing.T) {
 }
 
 func TestLSMT_GreaterThanEqual(t *testing.T) {
-	defer os.RemoveAll("my_lsm_tree")
-	lsmt, err := New("my_lsm_tree", 0755, 128, 2, 1)
+	defer os.RemoveAll("test_lsm_tree")
+	lsmt, err := New("test_lsm_tree", 0755, 128, 2, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -479,8 +479,8 @@ func TestLSMT_GreaterThanEqual(t *testing.T) {
 }
 
 func TestLSMT_LessThanEqual(t *testing.T) {
-	defer os.RemoveAll("my_lsm_tree")
-	lsmt, err := New("my_lsm_tree", 0755, 128, 2, 1)
+	defer os.RemoveAll("test_lsm_tree")
+	lsmt, err := New("test_lsm_tree", 0755, 128, 2, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -530,8 +530,8 @@ func TestLSMT_LessThanEqual(t *testing.T) {
 }
 
 func TestLSMT_Put(t *testing.T) {
-	defer os.RemoveAll("my_lsm_tree")
-	lsmt, err := New("my_lsm_tree", 0755, 1000, 100, 10)
+	defer os.RemoveAll("test_lsm_tree")
+	lsmt, err := New("test_lsm_tree", 0755, 1000, 100, 10)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -571,8 +571,8 @@ func TestLSMT_Put(t *testing.T) {
 func TestLSMT_Case(t *testing.T) {
 	// Searching latest sstable..
 
-	defer os.RemoveAll("my_lsm_tree")
-	l, err := New("my_lsm_tree", 0755, 100, 15, 13)
+	defer os.RemoveAll("test_lsm_tree")
+	l, err := New("test_lsm_tree", 0755, 100, 15, 13)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -599,6 +599,100 @@ func TestLSMT_Case(t *testing.T) {
 
 	if string(value) != "832" {
 		log.Fatalf("expected 832, got %s", string(value))
+	}
+
+}
+
+func TestLSMT_Transaction(t *testing.T) {
+	defer os.RemoveAll("test_lsm_tree")
+	lsmt, err := New("test_lsm_tree", 0755, 128, 2, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer lsmt.Close()
+
+	tx := lsmt.BeginTransaction()
+	tx.AddPut([]byte("key1"), []byte("value1"))
+	tx.AddPut([]byte("key2"), []byte("value2"))
+	tx.AddDelete([]byte("key1"))
+
+	err = lsmt.CommitTransaction(tx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	value, err := lsmt.Get([]byte("key1"))
+	if err == nil || value != nil {
+		t.Fatalf("expected key1 to be deleted, got %s", string(value))
+	}
+
+	value, err = lsmt.Get([]byte("key2"))
+	if err != nil || string(value) != "value2" {
+		t.Fatalf("expected value2, got %s", string(value))
+	}
+}
+
+func TestLSMT_Wal(t *testing.T) {
+	defer os.RemoveAll("test_lsm_tree")
+	lsmt, err := New("test_lsm_tree", 0755, 128, 2, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tx := lsmt.BeginTransaction()
+	tx.AddPut([]byte("key1"), []byte("value1"))
+	tx.AddPut([]byte("key2"), []byte("value2"))
+	tx.AddDelete([]byte("key1"))
+
+	err = lsmt.CommitTransaction(tx)
+	if err != nil {
+		lsmt.Close()
+		t.Fatal(err)
+	}
+
+	// Get key 2
+	value, err := lsmt.Get([]byte("key2"))
+	if err != nil || string(value) != "value2" {
+		lsmt.Close()
+		t.Fatalf("expected value2, got %s", string(value))
+	}
+
+	lsmt.Close()
+
+	// delete the sstables
+	os.RemoveAll("test_lsm_tree")
+
+	lsmt, err = New("test_lsm_tree", 0755, 128, 2, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	operations, err := lsmt.GetWal().Recover()
+	if err != nil {
+		return
+	}
+
+	for _, operation := range operations {
+		switch operation.Type {
+		case OpPut:
+			err = lsmt.Put(operation.Key, operation.Value)
+			if err != nil {
+				t.Fatal(err)
+			}
+		case OpDelete:
+			err = lsmt.Delete(operation.Key)
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+
+	// Get key 2
+	value, err = lsmt.Get([]byte("key2"))
+	if err != nil || string(value) != "value2" {
+		lsmt.Close()
+		t.Fatalf("expected value2, got %s", string(value))
 	}
 
 }

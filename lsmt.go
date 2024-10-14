@@ -288,6 +288,16 @@ func (l *LSMT) Put(key, value []byte) error {
 	// We will first put the key-value pair in the memtable.
 	// If the memtable size exceeds the flush size, we will flush the memtable to disk.
 
+	// Append the operation to the write-ahead log.
+	err := l.wal.WriteOperation(Operation{
+		Type: OpPut,
+		Key:  key,
+	})
+
+	if err != nil {
+		return err
+	}
+
 	// Check if value is tombstone
 	if bytes.Compare(value, []byte(TOMBSTONE_VALUE)) == 0 {
 		return errors.New("value cannot be a tombstone")
@@ -491,6 +501,16 @@ func (l *LSMT) Get(key []byte) ([]byte, error) {
 
 // Delete removes a key from the LSM-tree.
 func (l *LSMT) Delete(key []byte) error {
+	// Append the operation to the write-ahead log.
+	err := l.wal.WriteOperation(Operation{
+		Type: OpPut,
+		Key:  key,
+	})
+
+	if err != nil {
+		return err
+	}
+
 	// We will write a tombstone value to the memtable for the key.
 
 	// Lock memtable for writing.
@@ -596,6 +616,11 @@ func (l *LSMT) Close() error {
 		if err := l.flushMemtable(); err != nil {
 			return err
 		}
+	}
+
+	// Close the write-ahead log.
+	if err := l.wal.pager.Close(); err != nil {
+		return err
 	}
 
 	if len(l.sstables) > 0 {
