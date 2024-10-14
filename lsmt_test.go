@@ -755,3 +755,81 @@ func TestLSMT_Concurrent(t *testing.T) {
 		}
 	}
 }
+
+func TestLSMT_Concurrent2(t *testing.T) {
+	defer os.RemoveAll("test_lsm_tree")
+	lsmt, err := New("test_lsm_tree", 0755, 128, 22, 12)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer lsmt.Close()
+
+	var wg sync.WaitGroup
+	for i := 0; i < 1000; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			key := []byte(string(fmt.Sprintf("%d", i)))
+			value := []byte(string(fmt.Sprintf("%d", i)))
+
+			// Put operation
+			err := lsmt.Put(key, value)
+			if err != nil {
+				t.Errorf("Put operation failed: %v", err)
+			}
+
+		}(i)
+	}
+	wg.Wait()
+
+	for i := 0; i < 1000; i++ {
+		value, err := lsmt.Get([]byte(fmt.Sprintf("%d", i)))
+		if err != nil {
+			t.Errorf("Get operation failed: %v", err)
+		}
+
+		if string(value) != fmt.Sprintf("%d", i) {
+			t.Errorf("expected %d, got %s", i, string(value))
+		}
+	}
+}
+
+func TestLSMT_Concurrent3(t *testing.T) {
+	defer os.RemoveAll("test_lsm_tree")
+	lsmt, err := New("test_lsm_tree", 0755, 128, 4, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer lsmt.Close()
+
+	var wg sync.WaitGroup
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			key := []byte(string(fmt.Sprintf("%d", i)))
+			value := []byte(string(fmt.Sprintf("%d", i)))
+
+			// Put operation
+			err := lsmt.Put(key, value)
+			if err != nil {
+				t.Errorf("Put operation failed: %v", err)
+			}
+
+		}(i)
+	}
+	wg.Wait()
+
+	for i := 0; i < 10; i++ {
+		value, err := lsmt.Get([]byte(fmt.Sprintf("%d", i)))
+		if err != nil {
+			t.Errorf("Get operation failed: %v", err)
+		}
+
+		if string(value) != fmt.Sprintf("%d", i) {
+			t.Errorf("expected %d, got %s", i, string(value))
+		}
+	}
+}

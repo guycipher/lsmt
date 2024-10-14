@@ -47,6 +47,7 @@ type LSMT struct {
 	activeTransactions []*Transaction // List of active transactions
 	wal                *Wal
 	isFlushing         atomic.Int32
+	isCompacting       atomic.Int32
 }
 
 // Wal is a struct representing a write-ahead log.
@@ -295,6 +296,11 @@ func (l *LSMT) Put(key, value []byte) error {
 	// We will first put the key-value pair in the memtable.
 	// If the memtable size exceeds the flush size, we will flush the memtable to disk.
 
+	// Check if we are flushing or compacting
+	for l.isFlushing.Load() == 1 || l.isCompacting.Load() == 1 {
+		time.Sleep(10 * time.Nanosecond)
+	}
+
 	// Lock memtable for writing.
 	l.memtableLock.Lock()
 	defer l.memtableLock.Unlock()
@@ -343,8 +349,8 @@ func (l *LSMT) flushMemtable() error {
 	// We will create a new SSTable from the memtable and add it to the list of SSTables.
 	// We will then clear the memtable.
 
-	if l.isFlushing.Load() == 1 {
-		for l.isFlushing.Load() == 1 {
+	if l.isFlushing.Load() == 1 || l.isCompacting.Load() == 1 {
+		for l.isFlushing.Load() == 1 || l.isCompacting.Load() == 1 {
 			time.Sleep(10 * time.Nanosecond)
 		}
 	}
@@ -459,8 +465,8 @@ func (l *LSMT) Get(key []byte) ([]byte, error) {
 	// We will first check the memtable for the key.
 	// If the key is not found in the memtable, we will search the SSTables.
 
-	// Check if we are flushing
-	for l.isFlushing.Load() == 1 {
+	// Check if we are flushing or compacting
+	for l.isFlushing.Load() == 1 || l.isCompacting.Load() == 1 {
 		time.Sleep(10 * time.Nanosecond)
 	}
 
@@ -552,6 +558,14 @@ func (l *LSMT) Delete(key []byte) error {
 
 // Compact compacts the LSM-tree by merging all SSTables into a single SSTable.
 func (l *LSMT) Compact() error {
+	if l.isCompacting.Load() == 1 || l.isFlushing.Load() == 1 {
+		for l.isCompacting.Load() == 1 || l.isFlushing.Load() == 1 {
+			time.Sleep(10 * time.Nanosecond)
+		}
+	}
+
+	l.isCompacting.Store(1)
+
 	// Create a new empty memtable.
 	newMemtable := avl.NewAVLTree()
 
@@ -630,6 +644,8 @@ func (l *LSMT) Compact() error {
 	if err != nil {
 		return err
 	}
+
+	l.isCompacting.Store(0)
 
 	return nil
 }
