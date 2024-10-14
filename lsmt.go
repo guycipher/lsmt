@@ -26,6 +26,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 const SSTABLE_EXTENSION = ".sst"
@@ -45,6 +46,7 @@ type LSMT struct {
 	minimumSSTables    int            // The minimum number of SSTables to keep.  On compaction, we will always keep this number of SSTables instead of one large SSTable.
 	activeTransactions []*Transaction // List of active transactions
 	wal                *Wal
+	isFlushing         atomic.Int32
 }
 
 // Wal is a struct representing a write-ahead log.
@@ -264,6 +266,7 @@ func (l *LSMT) RunRecoveredOperations(operations []Operation) error {
 	return nil
 }
 
+// Ok returns whether the iterator is valid.
 func (it *SSTableIterator) Ok() bool {
 	return it.currentPage < it.maxPages
 }
@@ -292,6 +295,10 @@ func (l *LSMT) Put(key, value []byte) error {
 	// We will first put the key-value pair in the memtable.
 	// If the memtable size exceeds the flush size, we will flush the memtable to disk.
 
+	// Lock memtable for writing.
+	l.memtableLock.Lock()
+	defer l.memtableLock.Unlock()
+
 	// Append the operation to the write-ahead log.
 	err := l.wal.WriteOperation(Operation{
 		Type:  OpPut,
@@ -306,10 +313,6 @@ func (l *LSMT) Put(key, value []byte) error {
 	if bytes.Compare(value, []byte(TOMBSTONE_VALUE)) == 0 {
 		return errors.New("value cannot be a tombstone")
 	}
-
-	// Lock memtable for writing.
-	l.memtableLock.Lock()
-	defer l.memtableLock.Unlock()
 
 	// Put the key-value pair in the memtable.
 	l.memtable.Insert(key, value)
@@ -340,6 +343,14 @@ func (l *LSMT) flushMemtable() error {
 	// We will create a new SSTable from the memtable and add it to the list of SSTables.
 	// We will then clear the memtable.
 
+	if l.isFlushing.Load() == 1 {
+		for l.isFlushing.Load() == 1 {
+			time.Sleep(10 * time.Nanosecond)
+		}
+	}
+
+	l.isFlushing.Store(1)
+
 	// Create a new SSTable from the memtable.
 	sstable, err := l.newSSTable(l.directory, l.memtable)
 	if err != nil {
@@ -364,6 +375,8 @@ func (l *LSMT) flushMemtable() error {
 		}
 
 	}
+
+	l.isFlushing.Store(0)
 
 	return nil
 }
@@ -446,6 +459,11 @@ func (l *LSMT) Get(key []byte) ([]byte, error) {
 	// We will first check the memtable for the key.
 	// If the key is not found in the memtable, we will search the SSTables.
 
+	// Check if we are flushing
+	for l.isFlushing.Load() == 1 {
+		time.Sleep(10 * time.Nanosecond)
+	}
+
 	// Lock memtable for reading.
 	l.memtableLock.RLock()
 
@@ -505,6 +523,11 @@ func (l *LSMT) Get(key []byte) ([]byte, error) {
 
 // Delete removes a key from the LSM-tree.
 func (l *LSMT) Delete(key []byte) error {
+	// Check if we are flushing
+	for l.isFlushing.Load() == 1 {
+		time.Sleep(10 * time.Nanosecond)
+	}
+
 	// Append the operation to the write-ahead log.
 	err := l.wal.WriteOperation(Operation{
 		Type: OpPut,
